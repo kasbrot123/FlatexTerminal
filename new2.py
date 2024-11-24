@@ -57,8 +57,8 @@ START_PORTFOLIO = '2023-05-01'
 Currencies = {'EUR': 1}
 
 
-if not os.path.isdir('./.chaching'):
-    os.mkdir('.chaching')
+if not os.path.isdir('./.caching'):
+    os.mkdir('.caching')
 
 
 # files with data
@@ -75,7 +75,8 @@ class Konto():
 
     def add(self, date, value):
         self.value += value
-        self.dates.append(date.tz_localize('UTC'))
+        # self.dates.append(date.tz_localize('UTC'))
+        self.dates.append(date)
         self.values.append(value)
 
     def plot(self, everyday=False):
@@ -91,10 +92,17 @@ class Konto():
 
 
     def time_update(self):
-        start = pd.Timestamp(int(START_PORTFOLIO[0:4]), int(START_PORTFOLIO[5:7]), int(START_PORTFOLIO[8:10])).tz_localize('UTC')
-        end = pd.Timestamp(dt.datetime.today().date()).tz_localize('UTC')
-        self.time = np.arange(start, end, dt.timedelta(days=1))
-        self.time = np.array([i.tz_localize('UTC') for i in self.time]) # i hate it but i am too lazy
+
+        # start = dt.datetime.strptime(START_PORTFOLIO, '%Y-%m-%d')
+        # end = dt.datetime.today().date()
+        start = np.datetime64(START_PORTFOLIO, 'D')
+        end = np.datetime64('today', 'D')
+
+        # start = pd.Timestamp(int(START_PORTFOLIO[0:4]), int(START_PORTFOLIO[5:7]), int(START_PORTFOLIO[8:10])).tz_localize('UTC')
+        # end = pd.Timestamp(dt.datetime.today().date()).tz_localize('UTC')
+        # self.time = np.arange(start, end, dt.timedelta(days=1))
+        self.time = np.arange(start, end, np.timedelta64(1, 'D'))
+        # self.time = np.array([i.tz_localize('UTC') for i in self.time]) # i hate it but i am too lazy
         self.t_values = np.zeros(len(self.time))
 
         for i in range(len(self.dates)):
@@ -171,12 +179,15 @@ def correct_times_prices(times, prices, start, end):
     if len(prices) == 0:
         return times, prices
 
-    dt_start = pd.Timestamp(int(start[0:4]), int(start[5:7]), int(start[8:10])).tz_localize('UTC')
-    dt_end = pd.Timestamp(int(end[0:4]), int(end[5:7]), int(end[8:10])).tz_localize('UTC')
+    # dt_start = pd.Timestamp(int(start[0:4]), int(start[5:7]), int(start[8:10])).tz_localize('UTC')
+    # dt_end = pd.Timestamp(int(end[0:4]), int(end[5:7]), int(end[8:10])).tz_localize('UTC')
+    dt_start = np.datetime64(start, 'D')
+    dt_end = np.datetime64(end, 'D')
 
     new_times = [dt_start]
     new_prices = [prices[0]]
-    delta = dt.timedelta(days=1)
+    # delta = dt.timedelta(days=1)
+    delta = np.timedelta64(1, 'D')
 
     counter = 0
     COUNTER_LIMIT = 10000
@@ -190,7 +201,7 @@ def correct_times_prices(times, prices, start, end):
     for i in range(1, len(times)):
         while new_times[-1] + delta != times[i]:
             new_times.append(new_times[-1]+delta)
-            print(new_times[-1])
+            # print(new_times[-1])
             new_prices.append(new_prices[-1])
             counter += 1
             if counter > COUNTER_LIMIT:
@@ -233,24 +244,26 @@ class Wertpapier():
         #     self.price_current = 0
 
         try:
-            today = dt.datetime.today().strftime("%Y-%m-%d")
-
+            # today = dt.datetime.today().strftime("%Y-%m-%d")
+            today = str(np.datetime64('today', 'D'))
 
             cache_file = '.caching'+os.sep+isin+'.npy'
             if os.path.isfile(cache_file):
-                print('caching...')
                 data = np.load(cache_file, allow_pickle=True)
+                data_time = data[0].astype(np.datetime64)
                 # Time = data[0]
-                # if time[0] == XXX and time[-1] == dt.datetime.today():
-                self.time = data[0]
-                self.price_history = data[1]
-                return
+                if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
+                    print('caching...')
+                    self.time = data_time
+                    self.price_history = data[1]
+                    return
 
             # else download history
 
             data = yf.download(self.isin, START_PORTFOLIO, today, interval='1d')
             self.price_history = data[('Close', self.isin)].to_numpy()
-            self.time = data[('Close', self.isin)].index.to_numpy()
+            self.time = data[('Close', self.isin)].index.to_numpy().astype('datetime64[D]')
+
             self.time, self.price_history = correct_times_prices(self.time, self.price_history, START_PORTFOLIO, today)
             
             # self.time = np.arange(dt.datetime(2023, 5, 1), dt.datetime.today(), dt.timedelta(days=1)).astype(dt.datetime)
@@ -361,35 +374,31 @@ konto_path = './Kontoumsätze_2023_2024.xlsx'
 
 depot = pd.read_excel(depot_path)
 konto = pd.read_excel(konto_path)
-depot['Buchungstag'] = pd.to_datetime(depot['Buchungstag'], unit='ms').dt.tz_localize('UTC')
-depot['Valuta'] = pd.to_datetime(depot['Valuta'], unit='ms').dt.tz_localize('UTC')
-# pd.to_datetime(depot['Buchungstag'], unit='ms').dt.tz_localize('UTC')
+# no need to convert to UTC
+# depot['Buchungstag'] = pd.to_datetime(depot['Buchungstag'], unit='ms').dt.tz_localize('UTC')
+# depot['Valuta'] = pd.to_datetime(depot['Valuta'], unit='ms').dt.tz_localize('UTC')
 
-
+# what does this even do ?
 # depot = depot.assign(identifier=depot.Buchungsinformation.astype(str).str[-9:])
 # konto = konto.assign(identifier=konto.Buchungsinformationen.astype(str).str[-9:])
 
 
 
 # make sure konto is sorted for date (Valuta or Buchungsdatum)
-konto_valuta = konto['Valuta'].to_list()
-konto_info = konto['Buchungsinformationen'].to_list()
-konto_betrag = konto['Betrag'].to_list()
+konto_valuta = konto['Valuta'].to_numpy()
+konto_info = konto['Buchungsinformationen'].to_numpy()
+konto_betrag = konto['Betrag'].to_numpy()
 
-depot_date = depot['Buchungstag'].to_list() # this is more accurate
-# depot_date = depot['Valuta'].to_list()
-depot_bezeichnung = depot['Bezeichnung'].to_list()
-depot_isin = depot['ISIN'].to_list()
+depot_date = depot['Buchungstag'].to_numpy().astype('datetime64[D]') # this is more accurate than Valuta
+# depot_date = depot['Valuta'].to_numpy()
+depot_bezeichnung = depot['Bezeichnung'].to_numpy()
+depot_isin = depot['ISIN'].to_numpy()
 
-depot_nominal = depot['Nominal (Stk.)'].to_list()
-depot_betrag = depot['Betrag'].to_list()
-depot_kurs = depot['Kurs'].to_list()
+depot_nominal = depot['Nominal (Stk.)'].to_numpy()
+depot_betrag = depot['Betrag'].to_numpy()
+depot_kurs = depot['Kurs'].to_numpy()
 
-depot_info = depot['Buchungsinformation'].to_list()
-
-
-# def return_index(key, array):
-#     return array.index(key)
+depot_info = depot['Buchungsinformation'].to_numpy()
 
 
 Depotkonto = Konto('Depot')
@@ -397,7 +406,7 @@ Einlagenkonto = Konto('Einlage')
 Gesamtkonto = Konto('Gesamt')
 OhneEinlagen = Konto('Ohne Einlagen')
 
-depot['Buchungsinformation'].str.contains('Ausf').sum()
+# depot['Buchungsinformation'].str.contains('Ausf').sum()
 
 
 
@@ -450,7 +459,7 @@ for i in range(len(depot)):
                 if w.isin == ISIN:
                     w.split(split)
 
-    # break
+    # break # safety break
 
 
 
@@ -458,6 +467,8 @@ plt.figure()
 for i in range(len(Wertpapiere)):
     w = Wertpapiere[i]
     w.time_update()
+    if len(w.time) == 0:
+        continue
     plt.plot(w.time, w.Absolut, label=w.name+str(i))
 plt.legend()
 plt.grid()
@@ -466,9 +477,11 @@ leg1 = InteractiveLegend()
 plt.figure()
 for i in range(len(Wertpapiere)):
     w = Wertpapiere[i]
+    if len(w.time) == 0:
+        continue
     plt.plot(w.time, w.Relativ, label=w.name+str(i))
 plt.legend()
-plt.grid()
+# plt.grid()
 leg = InteractiveLegend()
 
 
