@@ -11,10 +11,6 @@ Depotumsätze
     -> 
 
 
-
-1. Import Excel/csv table
-2. Iterate over every entry
-
 yfinance probleme bei
     ETFS 
     Super Micro Computer
@@ -26,20 +22,21 @@ yfinance probleme bei
 ToDo
     - ETFs funktionieren nicht
     - Calls / Gold / Super Micro Computer lösen
+
     - Export Depotumsätze nicht vollständig (Konto schon)
     - Gesamt gegenrechnen: KontoSaldo + Depot = 50.000 irgendwas
-    - Plots mit Aktien interaktiv machen
     - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
     - Konten einrichten für: Gebühr, Steuer, Devisen etc.
     - Konten auf Zeitvektor richten
-    - Caching der Kurse
-    - 
+    - xlsx and csv support
+    - Mehrere Käufe an einem Tag -> Problem
+
 
 """
 
 
 
-
+# global modules
 import pandas as pd
 from matplotlib import pyplot as plt
 import numpy as np
@@ -47,11 +44,25 @@ import datetime as dt
 import yfinance as yf
 import random
 import time
+import os
+
+
+# local modules
+from interactive_legend import InteractiveLegend
 
 
 START_PORTFOLIO = '2023-05-01'
 
 Currencies = {'EUR': 1}
+
+
+if not os.path.isdir('./.chaching'):
+    os.mkdir('.chaching')
+
+
+# files with data
+# if not os.path.isdir('./data'):
+#     os.mkdir('./data')
 
 
 class Konto():
@@ -63,14 +74,24 @@ class Konto():
 
     def add(self, date, value):
         self.value += value
-        self.dates.append(date)
+        self.dates.append(date.tz_localize('UTC'))
         self.values.append(value)
 
-    def plot(self):
-        if len(self.values) != 0:
-            values_cumsum = np.cumsum(self.values)
-            plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
+    def plot(self, everyday=False):
 
+        if len(self.values) != 0:
+            if everyday:
+                self.time_update()
+                plt.plot(self.time, self.t_values, '-', label='{} ({:0.2f} €)'.format(self.name, self.t_values[-1]))
+            else:
+                values_cumsum = np.cumsum(self.values)
+                plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
+
+
+
+    def time_update(self):
+        today = dt.datetime.today().strftime("%Y-%m-%d")
+        self.time, self.t_values = correct_times_prices(self.dates, np.cumsum(self.values), START_PORTFOLIO, today)
 
     # def __add__(self, other):
     #
@@ -145,20 +166,33 @@ def correct_times_prices(times, prices, start, end):
     new_prices = [prices[0]]
     delta = dt.timedelta(days=1)
 
+    counter = 0
+    COUNTER_LIMIT = 10000
     while new_times[-1] != times[0]:
         new_times.append(new_times[-1]+delta)
         new_prices.append(new_prices[-1])
+        counter += 1
+        if counter > COUNTER_LIMIT:
+            raise Exception('While Loop Error') # pretty bad solution
 
     for i in range(1, len(times)):
         while new_times[-1] + delta != times[i]:
             new_times.append(new_times[-1]+delta)
+            print(new_times[-1])
             new_prices.append(new_prices[-1])
+            counter += 1
+            if counter > COUNTER_LIMIT:
+                raise Exception('While Loop Error')
+
         new_times.append(times[i])
         new_prices.append(prices[i])
 
     while new_times[-1] != dt_end:
         new_times.append(new_times[-1]+delta)
         new_prices.append(new_prices[-1])
+        counter += 1
+        if counter > COUNTER_LIMIT:
+            raise Exception('While Loop Error')
 
 
     return np.array(new_times), np.array(new_prices)
@@ -177,6 +211,8 @@ class Wertpapier():
         self.values_netto = []
         self.values_brutto = []
 
+        self.stock_value = 0
+
         # try:
         #     ticker = yf.Ticker(self.isin)
         #     self.price_current = ticker.info['currentPrice']
@@ -186,6 +222,20 @@ class Wertpapier():
 
         try:
             today = dt.datetime.today().strftime("%Y-%m-%d")
+
+
+            cache_file = '.caching'+os.sep+isin+'.npy'
+            if os.path.isfile(cache_file):
+                print('caching...')
+                data = np.load(cache_file, allow_pickle=True)
+                # Time = data[0]
+                # if time[0] == XXX and time[-1] == dt.datetime.today():
+                self.time = data[0]
+                self.price_history = data[1]
+                return
+
+            # else download history
+
             data = yf.download(self.isin, START_PORTFOLIO, today, interval='1d')
             self.price_history = data[('Close', self.isin)].to_numpy()
             self.time = data[('Close', self.isin)].index.to_numpy()
@@ -214,12 +264,14 @@ class Wertpapier():
             self.price_history = self.price_history / Currencies[currency]
             time.sleep(2*random.random()+2)
 
+            # save for caching
+            np.save(cache_file, [self.time, self.price_history])
+
         except Exception as e:
             print('yfinance exception')
             print(self.name, self.isin)
             self.price_history = []
 
-        self.stock_value = 0
 
         # self.time = np.arange(dt.datetime(2023, 5, 1), dt.datetime.today(), dt.timedelta(days=1)).astype(dt.datetime)
         # N = len(self.time)
@@ -312,8 +364,8 @@ konto_valuta = konto['Valuta'].to_list()
 konto_info = konto['Buchungsinformationen'].to_list()
 konto_betrag = konto['Betrag'].to_list()
 
-# depot_date = depot['Buchungstag'].to_list()
-depot_date = depot['Valuta'].to_list()
+depot_date = depot['Buchungstag'].to_list() # this is more accurate
+# depot_date = depot['Valuta'].to_list()
 depot_bezeichnung = depot['Bezeichnung'].to_list()
 depot_isin = depot['ISIN'].to_list()
 
@@ -334,7 +386,6 @@ Gesamtkonto = Konto('Gesamt')
 OhneEinlagen = Konto('Ohne Einlagen')
 
 depot['Buchungsinformation'].str.contains('Ausf').sum()
-
 
 
 
@@ -388,6 +439,9 @@ for i in range(len(depot)):
                     w.split(split)
 
     # break
+
+
+
 plt.figure()
 for i in range(len(Wertpapiere)):
     w = Wertpapiere[i]
@@ -395,6 +449,7 @@ for i in range(len(Wertpapiere)):
     plt.plot(w.time, w.Absolut, label=w.name+str(i))
 plt.legend()
 plt.grid()
+leg1 = InteractiveLegend()
 
 plt.figure()
 for i in range(len(Wertpapiere)):
@@ -402,6 +457,7 @@ for i in range(len(Wertpapiere)):
     plt.plot(w.time, w.Relativ, label=w.name+str(i))
 plt.legend()
 plt.grid()
+leg = InteractiveLegend()
 
 
 Eigenkapital_keys = [
