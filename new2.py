@@ -30,6 +30,7 @@ ToDo
     - Konten auf Zeitvektor richten
     - xlsx and csv support
     - Mehrere Käufe an einem Tag -> Problem
+    - UTC time tz_localize Fuckup lösen (comparing A == B funtioniert nicht)
 
 
 """
@@ -82,7 +83,7 @@ class Konto():
         if len(self.values) != 0:
             if everyday:
                 self.time_update()
-                plt.plot(self.time, self.t_values, '-', label='{} ({:0.2f} €)'.format(self.name, self.t_values[-1]))
+                plt.plot(self.time, self.tsum_values, '-', label='{} ({:0.2f} €)'.format(self.name, self.t_values[-1]))
             else:
                 values_cumsum = np.cumsum(self.values)
                 plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
@@ -90,8 +91,19 @@ class Konto():
 
 
     def time_update(self):
-        today = dt.datetime.today().strftime("%Y-%m-%d")
-        self.time, self.t_values = correct_times_prices(self.dates, np.cumsum(self.values), START_PORTFOLIO, today)
+        start = pd.Timestamp(int(START_PORTFOLIO[0:4]), int(START_PORTFOLIO[5:7]), int(START_PORTFOLIO[8:10])).tz_localize('UTC')
+        end = pd.Timestamp(dt.datetime.today().date()).tz_localize('UTC')
+        self.time = np.arange(start, end, dt.timedelta(days=1))
+        self.time = np.array([i.tz_localize('UTC') for i in self.time]) # i hate it but i am too lazy
+        self.t_values = np.zeros(len(self.time))
+
+        for i in range(len(self.dates)):
+            date = self.dates[i]
+            L = self.time == date
+            self.t_values[L] += self.values[i]
+
+        self.tsum_values = np.cumsum(self.t_values)
+
 
     # def __add__(self, other):
     #
@@ -354,8 +366,8 @@ depot['Valuta'] = pd.to_datetime(depot['Valuta'], unit='ms').dt.tz_localize('UTC
 # pd.to_datetime(depot['Buchungstag'], unit='ms').dt.tz_localize('UTC')
 
 
-depot = depot.assign(identifier=depot.Buchungsinformation.astype(str).str[-9:])
-konto = konto.assign(identifier=konto.Buchungsinformationen.astype(str).str[-9:])
+# depot = depot.assign(identifier=depot.Buchungsinformation.astype(str).str[-9:])
+# konto = konto.assign(identifier=konto.Buchungsinformationen.astype(str).str[-9:])
 
 
 
