@@ -11,4 +11,5 @@ Python code for visualizing the assets of your flatex depot.
 
 The code structure is still not optimized and there are a lot of debugging features in the code. A clean up is done afterwards when the main features are implemented. 
 
+*Update 2024-11-24*: Version 1.0 with Terminal class
 
