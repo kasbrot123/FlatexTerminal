@@ -2,6 +2,8 @@
 
 Python code for visualizing the assets of your flatex depot.
 
+**Latest Version:** `new2.py`
+
 
 ## Current Status
 
