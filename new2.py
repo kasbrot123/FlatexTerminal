@@ -52,6 +52,8 @@ import os
 from interactive_legend import InteractiveLegend
 
 
+
+
 START_PORTFOLIO = '2023-05-01'
 
 Currencies = {'EUR': 1}
@@ -73,44 +75,33 @@ class Konto():
         self.values = []
         self.value = 0
 
+        start = np.datetime64(START_PORTFOLIO, 'D')
+        end = np.datetime64('today', 'D')
+
+        self.time = np.arange(start, end, np.timedelta64(1, 'D'))
+        self.t_values = np.zeros(len(self.time))
+
+
     def add(self, date, value):
         self.value += value
-        # self.dates.append(date.tz_localize('UTC'))
         self.dates.append(date)
         self.values.append(value)
 
-    def plot(self, everyday=False):
+        # update time vectors
+        # one could do this in the end
+        # would be faster without recalculating cumsum
+        L = self.time == date
+        self.t_values[L] += value
+        self.tsum_values = np.cumsum(self.t_values)
 
+
+    def plot(self, everyday=False):
         if len(self.values) != 0:
             if everyday:
-                self.time_update()
                 plt.plot(self.time, self.tsum_values, '-', label='{} ({:0.2f} €)'.format(self.name, self.t_values[-1]))
             else:
                 values_cumsum = np.cumsum(self.values)
                 plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
-
-
-
-    def time_update(self):
-
-        # start = dt.datetime.strptime(START_PORTFOLIO, '%Y-%m-%d')
-        # end = dt.datetime.today().date()
-        start = np.datetime64(START_PORTFOLIO, 'D')
-        end = np.datetime64('today', 'D')
-
-        # start = pd.Timestamp(int(START_PORTFOLIO[0:4]), int(START_PORTFOLIO[5:7]), int(START_PORTFOLIO[8:10])).tz_localize('UTC')
-        # end = pd.Timestamp(dt.datetime.today().date()).tz_localize('UTC')
-        # self.time = np.arange(start, end, dt.timedelta(days=1))
-        self.time = np.arange(start, end, np.timedelta64(1, 'D'))
-        # self.time = np.array([i.tz_localize('UTC') for i in self.time]) # i hate it but i am too lazy
-        self.t_values = np.zeros(len(self.time))
-
-        for i in range(len(self.dates)):
-            date = self.dates[i]
-            L = self.time == date
-            self.t_values[L] += self.values[i]
-
-        self.tsum_values = np.cumsum(self.t_values)
 
 
     # def __add__(self, other):
@@ -125,68 +116,16 @@ class Konto():
 
 
 
-# class Wertpapier():
-#
-    # def __init__(self, ID, name):
-    #
-    #     self.ID = ID
-    #     self.name = name
-    #
-    #     self.date = []
-    #     self.konto = []
-    #     self.depot = []
-    #     self.kurs = []
-    #     # self.kurs_mean = []
-    #     self.stueck = []
-    #     self.gewinn = []
-    #     self.gebuehr = []
-    #
-    #     self.n_stocks = 0
-    #     self.mean_price = 0
-    #
-    # def buy(self, date, value_konto, value_depot, number, kurs):
-    #     self.date.append(date)
-    #     self.konto.append(value_konto)
-    #     self.depot.append(value_depot)
-    #     self.stueck.append(number)
-    #     self.kurs.append(kurs)
-    #     self.gewinn.append(0)
-    #     self.gebuehr.append(-value_konto-value_depot)
-    #
-    #     self.mean_price = (self.n_stocks * self.mean_price + number * kurs)/(self.n_stocks + number)
-    #     self.n_stocks += number
-    #
-    #
-    #
-    # def sell(self, date, value_konto, value_depot, number, kurs):
-    #     self.date.append(date)
-    #     self.konto.append(value_konto)
-    #     self.depot.append(value_depot)
-    #     self.stueck.append(number)
-    #     self.kurs.append(kurs)
-    #     self.gebuehr.append(-value_konto-value_depot)
-    #
-    #     self.gewinn.append(value_konto-number*self.mean_price)
-    #     self.n_stocks -= number
-
-
-def michi(a, b):
-    Currencies[a] = b
-    return
-
 # Saturdays and Sundays are missing and sometimes the valuta date is on these days
 def correct_times_prices(times, prices, start, end):
     if len(prices) == 0:
         return times, prices
 
-    # dt_start = pd.Timestamp(int(start[0:4]), int(start[5:7]), int(start[8:10])).tz_localize('UTC')
-    # dt_end = pd.Timestamp(int(end[0:4]), int(end[5:7]), int(end[8:10])).tz_localize('UTC')
     dt_start = np.datetime64(start, 'D')
     dt_end = np.datetime64(end, 'D')
 
     new_times = [dt_start]
     new_prices = [prices[0]]
-    # delta = dt.timedelta(days=1)
     delta = np.timedelta64(1, 'D')
 
     counter = 0
@@ -244,14 +183,12 @@ class Wertpapier():
         #     self.price_current = 0
 
         try:
-            # today = dt.datetime.today().strftime("%Y-%m-%d")
             today = str(np.datetime64('today', 'D'))
 
             cache_file = '.caching'+os.sep+isin+'.npy'
             if os.path.isfile(cache_file):
                 data = np.load(cache_file, allow_pickle=True)
                 data_time = data[0].astype(np.datetime64)
-                # Time = data[0]
                 if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
                     print('caching...')
                     self.time = data_time
@@ -366,22 +303,14 @@ class Wertpapier():
 #
 # y = json.dumps(getQuotes(['AAPL', 'VIE:BKS']), indent=2)
 
-
-'US67066G1040'
+#################################################################
+# this should all be stored in another class
 
 depot_path = './Depotumsätze_2023_2024.xlsx'
 konto_path = './Kontoumsätze_2023_2024.xlsx'
 
 depot = pd.read_excel(depot_path)
 konto = pd.read_excel(konto_path)
-# no need to convert to UTC
-# depot['Buchungstag'] = pd.to_datetime(depot['Buchungstag'], unit='ms').dt.tz_localize('UTC')
-# depot['Valuta'] = pd.to_datetime(depot['Valuta'], unit='ms').dt.tz_localize('UTC')
-
-# what does this even do ?
-# depot = depot.assign(identifier=depot.Buchungsinformation.astype(str).str[-9:])
-# konto = konto.assign(identifier=konto.Buchungsinformationen.astype(str).str[-9:])
-
 
 
 # make sure konto is sorted for date (Valuta or Buchungsdatum)
@@ -401,26 +330,18 @@ depot_kurs = depot['Kurs'].to_numpy()
 depot_info = depot['Buchungsinformation'].to_numpy()
 
 
-Depotkonto = Konto('Depot')
-Einlagenkonto = Konto('Einlage')
-Gesamtkonto = Konto('Gesamt')
-OhneEinlagen = Konto('Ohne Einlagen')
+#################################################################
 
+
+# number of lines with 'Ausf'
 # depot['Buchungsinformation'].str.contains('Ausf').sum()
-
-
 
 
 
 Wertpapiere = []
 
 
-
-counter = 0
-
 for i in range(len(depot)):
-    if counter == 2000:
-        break
     date = depot_date[i]
     info = depot_info[i]
 
@@ -442,7 +363,6 @@ for i in range(len(depot)):
             w = Wertpapier(ISIN, name)
             w.add(date, value_netto, nominal, price)
             Wertpapiere.append(w)
-            counter += 1
 
 
     if 'Split' in info:
@@ -462,6 +382,37 @@ for i in range(len(depot)):
     # break # safety break
 
 
+
+
+
+Eigenkapital_keys = [
+    'Einlage',
+    'Flatex Auszahlung',
+    'Investment',
+    'Investment Sparplan'
+    ]
+Order_keys = ['ORDER']
+
+Eigenkapital_Konto = Konto('Eigenkapital')
+Order_Konto = Konto('Orders')
+KontoSaldo = Konto('Konto Saldo')
+
+
+
+for i in range(len(konto_valuta)):
+    date = konto_valuta[i]
+    buchungsinfo = konto_info[i]
+    value_konto = konto_betrag[i]
+
+    KontoSaldo.add(date, value_konto)
+
+    if any(key in buchungsinfo for key in Eigenkapital_keys):
+        Eigenkapital_Konto.add(date, value_konto)
+        continue
+
+    if any(key in buchungsinfo for key in Order_keys):
+        Order_Konto.add(date, value_konto)
+        continue
 
 plt.figure()
 for i in range(len(Wertpapiere)):
@@ -485,51 +436,22 @@ plt.legend()
 leg = InteractiveLegend()
 
 
-Eigenkapital_keys = [
-    'Einlage',
-    'Flatex Auszahlung',
-    'Investment',
-    'Investment Sparplan'
-    ]
-Order_keys = ['ORDER']
 
-Eigenkapital_Konto = Konto('Eigenkapital')
-Order_Konto = Konto('Orders')
-KontoSaldo = Konto('Konto Saldo')
+# Portfolio_Value = 0
+# for w in Wertpapiere:
+#     if len(w.Absolut) > 0:
+#         if np.isnan(w.Absolut[-1]):
+#             continue
+#         Portfolio_Value += w.Absolut[-1]
+#     else: # fechting of stock data was not passible
+#         Portfolio_Value += w.Value()
+#         print(w.name, w.Value())
+#         # print(w.Absolut[-1])
 
+# # Portfolio_Value = sum([w.Absolut[-1] for w in Wertpapiere if len(w.Absolut) > 0])
+# Gesamt_Value = Portfolio_Value + sum(KontoSaldo.values)
+# print('Gesamt Value:', Gesamt_Value)
 
-for i in range(len(konto_valuta)):
-    date = konto_valuta[i]
-    buchungsinfo = konto_info[i]
-    value_konto = konto_betrag[i]
-
-    KontoSaldo.add(date, value_konto)
-
-    if any(key in buchungsinfo for key in Eigenkapital_keys):
-        Eigenkapital_Konto.add(date, value_konto)
-        continue
-
-    if any(key in buchungsinfo for key in Order_keys):
-        Order_Konto.add(date, value_konto)
-        continue
-
-
-Portfolio_Value = 0
-for w in Wertpapiere:
-    if len(w.Absolut) > 0:
-        if np.isnan(w.Absolut[-1]):
-            continue
-        Portfolio_Value += w.Absolut[-1]
-    else: # fechting of stock data was not passible
-        Portfolio_Value += w.Value()
-        print(w.name, w.Value())
-        # print(w.Absolut[-1])
-
-# Portfolio_Value = sum([w.Absolut[-1] for w in Wertpapiere if len(w.Absolut) > 0])
-Gesamt_Value = Portfolio_Value + sum(KontoSaldo.values)
-print('Gesamt Value:', Gesamt_Value)
-
-"Gesamt Value: 51362.247873116496"
 
 plt.figure()
 w.plot()
@@ -541,95 +463,5 @@ plt.legend()
 
 
 plt.show()
-
-
-
-    # if 'Ausführung' in buchungsinfo:
-    #
-    #     
-    #
-    #     # index = return_index(konto_info[i], depot_info)
-    #     index = depot_info.index(konto_info[i])
-    #     value_depot = depot_betrag[index]
-    #     number = abs(depot_nominal[index])
-    #     kurs = depot_kurs[index]
-    #     ISIN = depot_isin[index]
-    #     name = depot_bezeichnung[index]
-    #
-    #     # print(value_konto, value_depot)
-    #
-    #      # = depot_isin[index]
-    #
-    #
-    #     Einlagenkonto.add(date, value_konto)
-    #     Depotkonto.add(date, value_depot)
-    #     Gesamtkonto.add(date, value_konto+value_depot)
-    #     OhneEinlagen.add(date, value_konto)
-    #
-    #
-    #     not_in_Wertpapiere = True
-    #     for w in Wertpapiere:
-    #         if w.ID == ISIN:
-    #             not_in_Wertpapiere = False
-    #             if value_konto < 0:
-    #                 # print('bought more')
-    #                 w.buy(date, value_konto, value_depot, number, kurs)
-    #             if value_konto > 0:
-    #                 # print('sold')
-    #                 w.sell(date, value_konto, value_depot, number, kurs)
-    #
-    #
-    #
-#
-#
-#         if not_in_Wertpapiere:
-#             # print('added wertpapier')
-#             wertpapier = Wertpapier(ISIN, name)
-#             if value_konto < 0:
-#                 wertpapier.buy(date, value_konto, value_depot, number, kurs)
-#                 Wertpapiere.append(wertpapier)
-#             else:
-#                 print("error, something's wrong")
-#     # else:
-#     #     pass
-#         # print('not a order')
-#
-#     # if i == 1:
-#     #     break
-#
-#     else:
-#         # this means everything else than 'Ausführung' is a payment to or from the 'Einlagenkonto' and does not influence the ''
-#         Einlagenkonto.add(date, value_konto)
-#         Gesamtkonto.add(date, value_konto)
-#         if any(note in buchungsinfo for note in ['Einlage', 'Auszahlung', 'Investment']):
-#             pass
-#         else:
-#             OhneEinlagen.add(date, value_konto)
-#
-#
-# Stock_names = [w.name for w in Wertpapiere]
-#
-# for w in Wertpapiere:
-#     if sum(w.gewinn) == 0:
-#         continue
-#     print('{}: {:0.2f}€'.format(w.name,sum(w.gewinn)))
-#
-#
-#
-# Gewinn = sum([sum(w.gewinn) for w in Wertpapiere])
-# print('Gewinn Aktien: {:0.2f}€'.format(Gewinn))
-#
-#
-# fig = plt.figure()
-# Einlagenkonto.plot()
-# Depotkonto.plot()
-# Gesamtkonto.plot()
-# OhneEinlagen.plot()
-# plt.grid()
-# plt.legend()
-# plt.xlabel('time')
-# plt.ylabel('Money in €')
-#
-# plt.show()
 
 
