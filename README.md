@@ -1,6 +1,6 @@
 # Flatex Terminal
 
-Python script for visualizing the assets of your flatex depot.
+Python code for visualizing the assets of your flatex depot.
 
 
 ## Current Status
