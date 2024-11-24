@@ -1,16 +1,5 @@
 """
 
-Kontoumsätze für genaue Abrechnung
-    -> Gebühren und Steuer ist bereits abgezogen etc.
-    -> Das sind die Wichtigen Events
-
-Depotumsätze
-    -> sagen mir wiehoch der Kurs war
-    -> Lookup wieviel geld ich vor Steuern/Gebühr bekomme
-    -> Berechnung von realem Gewinn
-    -> 
-
-
 yfinance probleme bei
     ETFS 
     Super Micro Computer
@@ -18,19 +7,39 @@ yfinance probleme bei
     Xetra Gold
 
 
-
 ToDo
     - ETFs funktionieren nicht
     - Calls / Gold / Super Micro Computer lösen
-
     - Export Depotumsätze nicht vollständig (Konto schon)
     - Gesamt gegenrechnen: KontoSaldo + Depot = 50.000 irgendwas
     - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
-    - Konten einrichten für: Gebühr, Steuer, Devisen etc.
-    - Konten auf Zeitvektor richten
     - xlsx and csv support
-    - Mehrere Käufe an einem Tag -> Problem
-    - UTC time tz_localize Fuckup lösen (comparing A == B funtioniert nicht)
+
+
+Konten:
+
+    Tracking:
+        - Depot Zuflüsse
+        - Depot Abflüsse
+        - Konto Zuflüsse
+        - Konto Abflüsse
+        - Einzahlungen
+        - Auszahlungen
+        - Dividenden nach Steuer
+
+
+    Calculated:
+        KontoSaldo = 
+            KontoZuflüsse - KontoAbflüsse
+
+        DepotWert = 
+            Summe{ Wert aller Wertpapiere }
+
+        GebührSteuer = 
+            (KontoZuflüsse - KontoAbflüsse) - (DepotAbflüsse - DepotZuflüsse)
+
+        GesamtPortfolio = 
+            KontoSaldo + DepotWert
 
 
 """
@@ -55,7 +64,6 @@ from interactive_legend import InteractiveLegend
 
 
 START_PORTFOLIO = '2023-05-01'
-
 Currencies = {'EUR': 1}
 
 
@@ -175,13 +183,6 @@ class Wertpapier():
 
         self.stock_value = 0
 
-        # try:
-        #     ticker = yf.Ticker(self.isin)
-        #     self.price_current = ticker.info['currentPrice']
-        # except:
-        #     print('Problems with ' + self.name)
-        #     self.price_current = 0
-
         try:
             today = str(np.datetime64('today', 'D'))
 
@@ -202,11 +203,8 @@ class Wertpapier():
             self.time = data[('Close', self.isin)].index.to_numpy().astype('datetime64[D]')
 
             self.time, self.price_history = correct_times_prices(self.time, self.price_history, START_PORTFOLIO, today)
-            
-            # self.time = np.arange(dt.datetime(2023, 5, 1), dt.datetime.today(), dt.timedelta(days=1)).astype(dt.datetime)
-        # N = len(self.time)
-        # self.number_t = np.zeros(N)
-            
+
+
             time.sleep(1+random.random())
             print('after history')
 
@@ -235,14 +233,6 @@ class Wertpapier():
             self.price_history = []
 
 
-        # self.time = np.arange(dt.datetime(2023, 5, 1), dt.datetime.today(), dt.timedelta(days=1)).astype(dt.datetime)
-        # N = len(self.time)
-        # self.number_t = np.zeros(N)
-
-        # # change to isin
-        # ticker = 'AMZN'
-
-
     def add(self, date, value, nominal, price):
         self.dates.append(date)
         self.values_netto.append(value)
@@ -250,14 +240,11 @@ class Wertpapier():
         self.nominals.append(nominal)
         self.prices.append(price)
 
-        # self.Value()
-
 
     def split(self, split):
         self.prices = [p * split for p in self.prices]
         self.nominals = [n / split for n in self.nominals]
 
-        # self.Value()
 
     def plot(self):
         if len(self.values_netto) != 0:
@@ -336,11 +323,23 @@ depot_info = depot['Buchungsinformation'].to_numpy()
 # number of lines with 'Ausf'
 # depot['Buchungsinformation'].str.contains('Ausf').sum()
 
+Eigenkapital_keys = [
+    'Einlage',
+    'Flatex Auszahlung',
+    'Investment',
+    'Investment Sparplan'
+    ]
+Order_keys = ['ORDER']
 
-
+Eigenkapital_Konto = Konto('Eigenkapital')
+Order_Konto = Konto('Orders')
+KontoSaldo = Konto('Konto Saldo')
 Wertpapiere = []
 
 
+
+
+# iteration for depot
 for i in range(len(depot)):
     date = depot_date[i]
     info = depot_info[i]
@@ -382,23 +381,7 @@ for i in range(len(depot)):
     # break # safety break
 
 
-
-
-
-Eigenkapital_keys = [
-    'Einlage',
-    'Flatex Auszahlung',
-    'Investment',
-    'Investment Sparplan'
-    ]
-Order_keys = ['ORDER']
-
-Eigenkapital_Konto = Konto('Eigenkapital')
-Order_Konto = Konto('Orders')
-KontoSaldo = Konto('Konto Saldo')
-
-
-
+# iteration for konto
 for i in range(len(konto_valuta)):
     date = konto_valuta[i]
     buchungsinfo = konto_info[i]
@@ -432,7 +415,7 @@ for i in range(len(Wertpapiere)):
         continue
     plt.plot(w.time, w.Relativ, label=w.name+str(i))
 plt.legend()
-# plt.grid()
+plt.grid()
 leg = InteractiveLegend()
 
 
