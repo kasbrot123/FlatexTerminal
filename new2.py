@@ -1,19 +1,20 @@
 """
 
-yfinance probleme bei
-    ETFS 
-    Super Micro Computer
-    JPM Call auf Tesla
-    Xetra Gold
-
-
 ToDo
+    Now: 
+    - xlsx and csv support, path of files
+    - multiple input files
     - ETFs funktionieren nicht
+    - uses real data from depot
+
+    Later:
     - Calls / Gold / Super Micro Computer lösen
-    - Export Depotumsätze nicht vollständig (Konto schon)
-    - Gesamt gegenrechnen: KontoSaldo + Depot = 50.000 irgendwas
     - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
-    - xlsx and csv support
+    - zeros in plots maybe as nan values 
+    - Export Depotumsätze nicht vollständig (Konto schon -> Readme)
+    - wertpapiere time_update ändern
+    - Englisch/Deutsch -> einheitlich
+    - classes in different files, rename files
 
 
 Konten:
@@ -54,7 +55,6 @@ Konten:
 import pandas as pd
 from matplotlib import pyplot as plt
 import numpy as np
-import datetime as dt
 import yfinance as yf
 import random
 import time
@@ -141,10 +141,11 @@ class Konto():
         self.value = 0
 
         start = np.datetime64(START_PORTFOLIO, 'D')
-        end = np.datetime64('today', 'D')
+        end = np.datetime64('today', 'D') + np.timedelta64(1, 'D') # because arange
 
         self.time = np.arange(start, end, np.timedelta64(1, 'D'))
         self.t_values = np.zeros(len(self.time))
+        self.tsum_values = np.zeros(len(self.time))
 
 
     def add(self, date, value):
@@ -159,24 +160,66 @@ class Konto():
         self.t_values[L] += value
         self.tsum_values = np.cumsum(self.t_values)
 
+    def addWertpapiere(self, Wertpapiere):
+        # quick and dirty
+        self.tsum_values = 0
+        for w in Wertpapiere:
+            if len(w.Absolut) == 0:
+                continue
+            self.tsum_values += w.Absolut
+
+
 
     def plot(self, everyday=False):
-        if len(self.values) != 0:
-            if everyday:
-                plt.plot(self.time, self.tsum_values, '-', label='{} ({:0.2f} €)'.format(self.name, self.t_values[-1]))
-            else:
-                values_cumsum = np.cumsum(self.values)
-                plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
+        if everyday:
+            plt.plot(self.time, self.tsum_values, '-', label='{} {:0.2f} €'.format(self.name, self.tsum_values[-1]))
+        else:
+            values_cumsum = np.cumsum(self.values)
+            plt.plot(self.dates, values_cumsum, 'o--', label='{} {:0.2f} €'.format(self.name, values_cumsum[-1]))
 
 
-    # def __add__(self, other):
-    #
-    #     # some test if other is the same object
-    #     # ...
-    #
-    #     self.values = 
-    #     Sum = Konto('sum')
-    #     Sum.values 
+
+    def __add__(self, Add):
+
+        if not isinstance(Add, Konto):
+            raise Exception('Addition only possible between Konto classes')
+
+        NewObject = Konto('('+self.name + ' + ' +Add.name+')')
+        # NewObject.t_values = self.t_values + Add.t_values
+        # NewObject.tsum_values = np.cumsum(NewObject.t_values)
+        NewObject.tsum_values = self.tsum_values + Add.tsum_values
+
+        # dates and values not really necessary
+        new_dates = list(self.dates) + list(Add.dates) # list() -> copy
+        new_values = list(self.values) + list(Add.values)
+        NewObject.value = sum(new_values)
+
+        # one could also just call .add function for each pair
+        NewObject.dates = [d for d, _ in sorted(zip(new_dates, new_values))]
+        NewObject.values = [v for _, v in sorted(zip(new_dates, new_values))]
+
+        return NewObject
+
+    def __sub__(self, Sub):
+
+        if not isinstance(Sub, Konto):
+            raise Exception('Subtraction only possible between Konto classes')
+
+        NewObject = Konto('('+self.name + ' - ' +Sub.name+')')
+        # NewObject.t_values = self.t_values - Sub.t_values
+        # NewObject.tsum_values = np.cumsum(NewObject.t_values)
+        NewObject.tsum_values = self.tsum_values - Sub.tsum_values
+
+        # dates and values not really necessary
+        new_dates = list(self.dates) + list(Sub.dates) # list() -> copy
+        new_values = list(self.values) + list(Sub.values)
+        NewObject.value = sum(new_values)
+
+        # one could also just call .add function for each pair
+        NewObject.dates = [d for d, _ in sorted(zip(new_dates, new_values))]
+        NewObject.values = [v for _, v in sorted(zip(new_dates, new_values))]
+
+        return NewObject
 
 
 
@@ -194,6 +237,8 @@ class Wertpapier():
         self.values_brutto = []
 
         self.stock_value = 0
+        self.Absolut = 0
+        self.Relativ = 1
 
         try:
             today = str(np.datetime64('today', 'D'))
@@ -251,6 +296,7 @@ class Wertpapier():
         self.values_brutto.append(np.nan)
         self.nominals.append(nominal)
         self.prices.append(price)
+        self.stock_value = sum([p*n for p, n in zip(self.prices, self.nominals)])
 
 
     def split(self, split):
@@ -277,10 +323,6 @@ class Wertpapier():
             L = self.time == self.dates[i]
             self.t_nominals[L] += self.nominals[i]
             self.t_prices[L] = self.prices[i]
-            if not any(L):
-                print('MISSING DATE')
-            else:
-                print('Found one day',any(L))
 
         self.tsum_nominals = np.cumsum(self.t_nominals)
 
@@ -301,186 +343,210 @@ class Terminal():
         ## init parameters and 'Konten'
         pass
 
-    def read_data(self):
+
+    def read_data(self, path='.'):
         # read the data from the files and evaluate
-        pass
+
+        depot_path = './Depotumsätze_2023_2024.xlsx'
+        konto_path = './Kontoumsätze_2023_2024.xlsx'
+
+        self.depot = pd.read_excel(depot_path)
+        self.konto = pd.read_excel(konto_path)
+
+        # make sure konto is sorted for date (Valuta or Buchungsdatum)
+        konto_valuta = self.konto['Valuta'].to_numpy()
+        konto_info = self.konto['Buchungsinformationen'].to_numpy()
+        konto_betrag = self.konto['Betrag'].to_numpy()
+
+        # 'Buchungstag' is more accurate than Valuta
+        depot_date = self.depot['Buchungstag'].to_numpy().astype('datetime64[D]')
+        # depot_date = depot['Valuta'].to_numpy()
+        depot_bezeichnung = self.depot['Bezeichnung'].to_numpy()
+        depot_isin = self.depot['ISIN'].to_numpy()
+        depot_nominal = self.depot['Nominal (Stk.)'].to_numpy()
+        depot_betrag = self.depot['Betrag'].to_numpy()
+        depot_kurs = self.depot['Kurs'].to_numpy()
+        depot_info = self.depot['Buchungsinformation'].to_numpy()
+
+        Eigenkapital_keys = [
+            'Einlage',
+            'Investment',
+            'Investment Sparplan'
+            ]
+
+        Order_keys = ['ORDER']
+
+        self.KontoIn = Konto('KontoIn')
+        self.KontoOut = Konto('KontoOut')
+        self.KontoSum = Konto('KontoSum')
+
+        self.DepotIn = Konto('DepotIn')
+        self.DepotOut = Konto('DepotOut')
+        self.DepotSum = Konto('DepotSum')
+
+        self.CashIn = Konto('CashIn')
+        self.CashOut = Konto('CashOut')
+        self.CashSum = Konto('CashSum')
+
+        self.OrderIn = Konto('OrderIn')
+        self.OrderOut = Konto('OrderOut')
+
+        self.Dividends = Konto('Dividends')
+
+        self.Wertpapiere = []
+
+
+        # iteration for depot
+        for i in range(len(self.depot)):
+            # fields from table
+            date = depot_date[i]
+            info = depot_info[i]
+            ISIN = depot_isin[i]
+            nominal = depot_nominal[i]
+            value_netto = depot_betrag[i] # value without charges
+            # value_brutto = depot_betrag[i] # value with charges, money you spend, ToDo
+            price = depot_kurs[i]
+            name = depot_bezeichnung[i]
+
+            if 'Ausführung' in info:
+                if 'Kauf' in info:
+                    self.DepotIn.add(date, value_netto)
+                if 'Verkauf' in info:
+                    self.DepotOut.add(date, value_netto)
+
+                not_in_Wertpapiere = True
+                for w in self.Wertpapiere:
+                    if w.isin == ISIN:
+                        not_in_Wertpapiere = False
+                        w.add(date, value_netto, nominal, price)
+                if not_in_Wertpapiere:
+                    w = Wertpapier(ISIN, name)
+                    w.add(date, value_netto, nominal, price)
+                    self.Wertpapiere.append(w)
+
+
+            if 'Split' in info:
+                if value_netto > 0: # split appears twice
+                    not_in_Wertpapiere = True
+                    x = info.split(' ')
+                    for y in x:
+                        if ':' in y:
+                            a, b = y.split(':')
+                            split = float(a) / float(b)
+
+                    for w in self.Wertpapiere:
+                        if w.isin == ISIN:
+                            w.split(split)
+
+
+            if 'Thesaurierung' in info:
+                pass # no action
+
+
+
+        # iteration for konto
+        for i in range(len(konto_valuta)):
+            # fields from table
+            date = konto_valuta[i]
+            buchungsinfo = konto_info[i]
+            value_konto = konto_betrag[i]
+
+            # Konto In/Out/Sum
+            self.KontoSum.add(date, value_konto)
+            if value_konto > 0:
+                self.KontoIn.add(date, value_konto)
+            if value_konto < 0:
+                self.KontoOut.add(date, value_konto)
+
+            # Cash In and Out
+            if any(key in buchungsinfo for key in Eigenkapital_keys):
+                self.CashIn.add(date, value_konto)
+            if 'Flatex Auszahlung' in buchungsinfo:
+                self.CashOut.add(date, value_konto)
+
+            # Order Fees and Taxes
+            if any(key in buchungsinfo for key in Order_keys):
+                if 'Kauf' in buchungsinfo: # or value_konto < 0
+                    self.OrderIn.add(date, value_konto)
+                if 'Verkauf' in buchungsinfo: # or value_konto > 0
+                    self.OrderOut.add(date, value_konto)
+
+            if 'Dividenden' in buchungsinfo:
+                self.Dividends.add(date, value_konto)
+
+        for w in self.Wertpapiere:
+            w.time_update()
+
+        self.DepotSum.addWertpapiere(self.Wertpapiere)
+        self.CashSum = self.CashOut + self.CashIn
+        self.FeesTaxes = (self.OrderOut - self.OrderIn) - (self.DepotIn - self.DepotOut)
+        self.Portfolio = self.KontoSum + self.DepotSum
+        self.Portfolio.name = 'Portfolio'
+
 
     def plot_konten(self):
         # plot all 'Konten' with interactive mode
-        pass
+
+        plt.figure()
+        self.KontoIn.plot(True)
+        self.KontoOut.plot(True)
+        self.KontoSum.plot(True)
+        self.DepotIn.plot(True)
+        self.DepotOut.plot(True)
+        self.DepotSum.plot(True)
+        self.CashIn.plot(True)
+        self.CashOut.plot(True)
+        self.CashSum.plot(True)
+        self.OrderIn.plot(True)
+        self.OrderOut.plot(True)
+        self.Dividends.plot(True)
+        self.FeesTaxes.plot(True)
+        self.Portfolio.plot(True)
+        plt.legend()
+        plt.grid()
+        self.leg = InteractiveLegend()
+
 
     def plot_stocks(self, relative=True):
         # plot all stock data abs/rel values with interative mode
-        pass
+
+        plt.figure()
+        for i in range(len(self.Wertpapiere)):
+            w = self.Wertpapiere[i]
+            w.time_update()
+            if len(w.time) == 0:
+                continue
+            plt.plot(w.time, w.Absolut, label=w.name+'('+str(i)+')')
+        plt.legend()
+        plt.grid()
+        self.leg1 = InteractiveLegend()
+
+        plt.figure()
+        for i in range(len(self.Wertpapiere)):
+            w = self.Wertpapiere[i]
+            if len(w.time) == 0:
+                continue
+            plt.plot(w.time, w.Relativ, label=w.name+'('+str(i)+')')
+        plt.legend()
+        plt.grid()
+        self.leg2 = InteractiveLegend()
 
 
     # single analysis of stocks and other stuff on demand
 
 
 
-
-
 ################################################################################
 
 
+if __name__ == '__main__':
 
+    terminal = Terminal()
+    terminal.read_data()
+    terminal.plot_stocks()
+    terminal.plot_konten()
 
-#################################################################
-# this should all be stored in another class
-
-depot_path = './Depotumsätze_2023_2024.xlsx'
-konto_path = './Kontoumsätze_2023_2024.xlsx'
-
-depot = pd.read_excel(depot_path)
-konto = pd.read_excel(konto_path)
-
-
-# make sure konto is sorted for date (Valuta or Buchungsdatum)
-konto_valuta = konto['Valuta'].to_numpy()
-konto_info = konto['Buchungsinformationen'].to_numpy()
-konto_betrag = konto['Betrag'].to_numpy()
-
-depot_date = depot['Buchungstag'].to_numpy().astype('datetime64[D]') # this is more accurate than Valuta
-# depot_date = depot['Valuta'].to_numpy()
-depot_bezeichnung = depot['Bezeichnung'].to_numpy()
-depot_isin = depot['ISIN'].to_numpy()
-
-depot_nominal = depot['Nominal (Stk.)'].to_numpy()
-depot_betrag = depot['Betrag'].to_numpy()
-depot_kurs = depot['Kurs'].to_numpy()
-
-depot_info = depot['Buchungsinformation'].to_numpy()
-
-
-#################################################################
-
-
-# number of lines with 'Ausf'
-# depot['Buchungsinformation'].str.contains('Ausf').sum()
-
-Eigenkapital_keys = [
-    'Einlage',
-    'Flatex Auszahlung',
-    'Investment',
-    'Investment Sparplan'
-    ]
-Order_keys = ['ORDER']
-
-Eigenkapital_Konto = Konto('Eigenkapital')
-Order_Konto = Konto('Orders')
-KontoSaldo = Konto('Konto Saldo')
-Wertpapiere = []
-
-
-
-
-# iteration for depot
-for i in range(len(depot)):
-    date = depot_date[i]
-    info = depot_info[i]
-
-    ISIN = depot_isin[i]
-    nominal = depot_nominal[i]
-    value_netto = depot_betrag[i] # value without charges
-    value_brutto = depot_betrag[i] # value with charges, money you spend
-    price = depot_kurs[i]
-
-    name = depot_bezeichnung[i]
-
-    if 'Ausführung' in info:
-        not_in_Wertpapiere = True
-        for w in Wertpapiere:
-            if w.isin == ISIN:
-                not_in_Wertpapiere = False
-                w.add(date, value_netto, nominal, price)
-        if not_in_Wertpapiere:
-            w = Wertpapier(ISIN, name)
-            w.add(date, value_netto, nominal, price)
-            Wertpapiere.append(w)
-
-
-    if 'Split' in info:
-        if value_netto > 0: # split appears twice
-            not_in_Wertpapiere = True
-            x = info.split(' ')
-            for y in x:
-                if ':' in y:
-                    a, b = y.split(':')
-                    split = float(a) / float(b)
-                    print(a, b)
-
-            for w in Wertpapiere:
-                if w.isin == ISIN:
-                    w.split(split)
-
-    # break # safety break
-
-
-# iteration for konto
-for i in range(len(konto_valuta)):
-    date = konto_valuta[i]
-    buchungsinfo = konto_info[i]
-    value_konto = konto_betrag[i]
-
-    KontoSaldo.add(date, value_konto)
-
-    if any(key in buchungsinfo for key in Eigenkapital_keys):
-        Eigenkapital_Konto.add(date, value_konto)
-        continue
-
-    if any(key in buchungsinfo for key in Order_keys):
-        Order_Konto.add(date, value_konto)
-        continue
-
-plt.figure()
-for i in range(len(Wertpapiere)):
-    w = Wertpapiere[i]
-    w.time_update()
-    if len(w.time) == 0:
-        continue
-    plt.plot(w.time, w.Absolut, label=w.name+str(i))
-plt.legend()
-plt.grid()
-leg1 = InteractiveLegend()
-
-plt.figure()
-for i in range(len(Wertpapiere)):
-    w = Wertpapiere[i]
-    if len(w.time) == 0:
-        continue
-    plt.plot(w.time, w.Relativ, label=w.name+str(i))
-plt.legend()
-plt.grid()
-leg = InteractiveLegend()
-
-
-
-# Portfolio_Value = 0
-# for w in Wertpapiere:
-#     if len(w.Absolut) > 0:
-#         if np.isnan(w.Absolut[-1]):
-#             continue
-#         Portfolio_Value += w.Absolut[-1]
-#     else: # fechting of stock data was not passible
-#         Portfolio_Value += w.Value()
-#         print(w.name, w.Value())
-#         # print(w.Absolut[-1])
-
-# # Portfolio_Value = sum([w.Absolut[-1] for w in Wertpapiere if len(w.Absolut) > 0])
-# Gesamt_Value = Portfolio_Value + sum(KontoSaldo.values)
-# print('Gesamt Value:', Gesamt_Value)
-
-
-plt.figure()
-w.plot()
-Eigenkapital_Konto.plot()
-Order_Konto.plot()
-KontoSaldo.plot()
-plt.grid()
-plt.legend()
-
-
-plt.show()
+    plt.show()
 
 
 
