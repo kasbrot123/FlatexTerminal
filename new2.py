@@ -19,27 +19,31 @@ ToDo
 Konten:
 
     Tracking:
-        - Depot Zuflüsse
-        - Depot Abflüsse
-        - Konto Zuflüsse
-        - Konto Abflüsse
-        - Einzahlungen
-        - Auszahlungen
-        - Dividenden nach Steuer
+        - Depot Zuflüsse (DepotIn)
+        - Depot Abflüsse (DepotOut)
+        - Konto Zuflüsse (KontoIn)
+        - Konto Abflüsse (KontoOut)
+        - Einzahlungen (CashIn)
+        - Auszahlungen (CashOut)
+        - Dividenden nach Steuer (Dividends)
 
 
     Calculated:
         KontoSaldo = 
             KontoZuflüsse - KontoAbflüsse
+            (KontoSum)
 
         DepotWert = 
             Summe{ Wert aller Wertpapiere }
+            (DepotSum)
 
         GebührSteuer = 
             (KontoZuflüsse - KontoAbflüsse) - (DepotAbflüsse - DepotZuflüsse)
+            (FeesTaxes)
 
         GesamtPortfolio = 
             KontoSaldo + DepotWert
+            (Portfolio)
 
 
 """
@@ -61,20 +65,73 @@ import os
 from interactive_legend import InteractiveLegend
 
 
+####################################
+# Global Definitions 
 
 
 START_PORTFOLIO = '2023-05-01'
 Currencies = {'EUR': 1}
 
 
+####################################
+# Paths and Folders
+
 if not os.path.isdir('./.caching'):
     os.mkdir('.caching')
-
 
 # files with data
 # if not os.path.isdir('./data'):
 #     os.mkdir('./data')
 
+
+################################################################################
+# Functions 
+
+# Saturdays and Sundays are missing and sometimes the valuta date is on these days
+def correct_times_prices(times, prices, start, end):
+    if len(prices) == 0:
+        return times, prices
+
+    dt_start = np.datetime64(start, 'D')
+    dt_end = np.datetime64(end, 'D')
+
+    new_times = [dt_start]
+    new_prices = [prices[0]]
+    delta = np.timedelta64(1, 'D')
+
+    counter = 0
+    COUNTER_LIMIT = 10000
+    while new_times[-1] != times[0]:
+        new_times.append(new_times[-1]+delta)
+        new_prices.append(new_prices[-1])
+        counter += 1
+        if counter > COUNTER_LIMIT:
+            raise Exception('While Loop Error') # pretty bad solution
+
+    for i in range(1, len(times)):
+        while new_times[-1] + delta != times[i]:
+            new_times.append(new_times[-1]+delta)
+            # print(new_times[-1])
+            new_prices.append(new_prices[-1])
+            counter += 1
+            if counter > COUNTER_LIMIT:
+                raise Exception('While Loop Error')
+
+        new_times.append(times[i])
+        new_prices.append(prices[i])
+
+    while new_times[-1] != dt_end:
+        new_times.append(new_times[-1]+delta)
+        new_prices.append(new_prices[-1])
+        counter += 1
+        if counter > COUNTER_LIMIT:
+            raise Exception('While Loop Error')
+
+
+    return np.array(new_times), np.array(new_prices)
+
+################################################################################
+# Classes 
 
 class Konto():
     def __init__(self, name):
@@ -123,58 +180,13 @@ class Konto():
 
 
 
-
-# Saturdays and Sundays are missing and sometimes the valuta date is on these days
-def correct_times_prices(times, prices, start, end):
-    if len(prices) == 0:
-        return times, prices
-
-    dt_start = np.datetime64(start, 'D')
-    dt_end = np.datetime64(end, 'D')
-
-    new_times = [dt_start]
-    new_prices = [prices[0]]
-    delta = np.timedelta64(1, 'D')
-
-    counter = 0
-    COUNTER_LIMIT = 10000
-    while new_times[-1] != times[0]:
-        new_times.append(new_times[-1]+delta)
-        new_prices.append(new_prices[-1])
-        counter += 1
-        if counter > COUNTER_LIMIT:
-            raise Exception('While Loop Error') # pretty bad solution
-
-    for i in range(1, len(times)):
-        while new_times[-1] + delta != times[i]:
-            new_times.append(new_times[-1]+delta)
-            # print(new_times[-1])
-            new_prices.append(new_prices[-1])
-            counter += 1
-            if counter > COUNTER_LIMIT:
-                raise Exception('While Loop Error')
-
-        new_times.append(times[i])
-        new_prices.append(prices[i])
-
-    while new_times[-1] != dt_end:
-        new_times.append(new_times[-1]+delta)
-        new_prices.append(new_prices[-1])
-        counter += 1
-        if counter > COUNTER_LIMIT:
-            raise Exception('While Loop Error')
-
-
-    return np.array(new_times), np.array(new_prices)
-
-
 class Wertpapier():
 
     def __init__(self, isin, name):
 
         self.isin = isin
         self.name = name
-        
+
         self.dates = []
         self.prices = []
         self.nominals = []
@@ -283,12 +295,35 @@ class Wertpapier():
         self.Relativ = self.price_history / effective_price * L_nominal
 
 
-# from googlefinance import getQuotes
-# import json
-#
-# x = json.dumps(getQuotes('AAPL'), indent=2)
-#
-# y = json.dumps(getQuotes(['AAPL', 'VIE:BKS']), indent=2)
+class Terminal():
+
+    def __init__(self):
+        ## init parameters and 'Konten'
+        pass
+
+    def read_data(self):
+        # read the data from the files and evaluate
+        pass
+
+    def plot_konten(self):
+        # plot all 'Konten' with interactive mode
+        pass
+
+    def plot_stocks(self, relative=True):
+        # plot all stock data abs/rel values with interative mode
+        pass
+
+
+    # single analysis of stocks and other stuff on demand
+
+
+
+
+
+################################################################################
+
+
+
 
 #################################################################
 # this should all be stored in another class
@@ -448,3 +483,16 @@ plt.legend()
 plt.show()
 
 
+
+
+
+###############################################################################
+# Other Stuff
+
+
+# from googlefinance import getQuotes
+# import json
+#
+# x = json.dumps(getQuotes('AAPL'), indent=2)
+#
+# y = json.dumps(getQuotes(['AAPL', 'VIE:BKS']), indent=2)
