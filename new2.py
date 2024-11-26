@@ -15,6 +15,8 @@ ToDo
     - wertpapiere time_update ändern
     - Englisch/Deutsch -> einheitlich
     - classes in different files, rename files
+    - constructor remove try catch
+    - faster solution when downloading all at once with 'Tickers' ?
 
 
 Konten:
@@ -64,6 +66,10 @@ import os
 # local modules
 from interactive_legend import InteractiveLegend
 
+import logging
+logger = logging.getLogger('yfinance')
+logger.disabled = True
+logger.propagate = False
 
 ####################################
 # Global Definitions 
@@ -129,6 +135,87 @@ def correct_times_prices(times, prices, start, end):
 
 
     return np.array(new_times), np.array(new_prices)
+
+
+
+import requests
+
+# def get_ticker(company_name, isin):
+#     url = "https://query2.finance.yahoo.com/v1/finance/search"
+#     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+#     params = {"q": company_name, "quotes_count": 1, "country": "United States"}
+#     # params = {"q": company_name, "quotes_count": 15, "country": "Austria"}
+#
+#     res = requests.get(url=url, params=params, headers={'User-Agent': user_agent})
+#     data = res.json()
+#
+#     # return data
+#     if len(data['quotes']) == 0:
+#         return isin
+#     company_code = data['quotes'][0]['symbol']
+#     return company_code
+#
+#
+# def get_data(isin, company_name):
+#     pass
+
+
+def get_ticker(company_name, isin):
+    url = "https://query2.finance.yahoo.com/v1/finance/search"
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    company_name = company_name.replace('ETF', '') # remove ETF because it does not like it
+    params = {"q": company_name, "quotes_count": 1, "country": "United States"}
+    # params = {"q": company_name, "quotes_count": 15, "country": "Austria"}
+
+    res = requests.get(url=url, params=params, headers={'User-Agent': user_agent})
+    data = res.json()
+    results = data['quotes']
+
+    symbols = []
+    for result in results:
+        symbols.append(result['symbol'])
+
+    return symbols
+
+
+def get_data(company_name, isin):
+    today = str(np.datetime64('today', 'D'))
+    waiting_time = 2
+
+    company_name = company_name.replace('ETF', '')
+    search = [isin, company_name] + get_ticker(company_name, isin)
+    search = [isin] + get_ticker(company_name, isin)
+    for i in range(len(search)):
+        if i > 0:
+            print('WARNING: ticker could be wrong')
+            print(company_name, search[i])
+            # return np.array([]), np.array([])
+        s = search[i]
+        time.sleep(waiting_time)
+        data = yf.download(s, START_PORTFOLIO, today, interval='1d', progress=False)
+        data = data.dropna(axis=1, how='all')
+        s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
+        if len(data) != 0:
+            print(company_name, s)
+            price_history = data[('Close', s_index)].to_numpy()
+            Time = data[('Close', s_index)].index.to_numpy().astype('datetime64[D]')
+            Time, price_history = correct_times_prices(Time, price_history, START_PORTFOLIO, today)
+
+            time.sleep(waiting_time)
+            ticker = yf.Ticker(s)
+            currency = ticker.info['currency']
+
+            if currency not in Currencies:
+                time.sleep(waiting_time)
+                change = yf.Ticker('EUR{}=X'.format(currency))
+                eur_change = change.info['ask'] # bid/ask
+                Currencies[currency] = eur_change
+            price_history = price_history / Currencies[currency]
+
+            return Time, price_history
+
+    return np.array([]), np.array([])
+
 
 ################################################################################
 # Classes 
@@ -240,54 +327,80 @@ class Wertpapier():
         self.Absolut = 0
         self.Relativ = 1
 
-        try:
-            today = str(np.datetime64('today', 'D'))
+        print(self.name)
 
-            cache_file = '.caching'+os.sep+isin+'.npy'
-            if os.path.isfile(cache_file):
-                data = np.load(cache_file, allow_pickle=True)
-                data_time = data[0].astype(np.datetime64)
-                if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
-                    print('caching...')
-                    self.time = data_time
-                    self.price_history = data[1]
-                    return
+        cache_file = '.caching'+os.sep+isin+'.npy'
+        if os.path.isfile(cache_file):
+            data = np.load(cache_file, allow_pickle=True)
+            data_time = data[0].astype(np.datetime64)
+            if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
+                print('caching...')
+                self.time = data_time
+                self.price_history = data[1]
+                return
 
-            # else download history
-
-            data = yf.download(self.isin, START_PORTFOLIO, today, interval='1d')
-            self.price_history = data[('Close', self.isin)].to_numpy()
-            self.time = data[('Close', self.isin)].index.to_numpy().astype('datetime64[D]')
-
-            self.time, self.price_history = correct_times_prices(self.time, self.price_history, START_PORTFOLIO, today)
+        # today = str(np.datetime64('today', 'D'))
+        self.time, self.price_history = get_data(self.name, self.isin)
+        np.save(cache_file, [self.time, self.price_history])
 
 
-            time.sleep(1+random.random())
-            print('after history')
+        # try:
+        # # if True:
+        #     today = str(np.datetime64('today', 'D'))
+        #
+        #     cache_file = '.caching'+os.sep+isin+'.npy'
+        #     if os.path.isfile(cache_file):
+        #         data = np.load(cache_file, allow_pickle=True)
+        #         data_time = data[0].astype(np.datetime64)
+        #         if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
+        #             print('caching...')
+        #             self.time = data_time
+        #             self.price_history = data[1]
+        #             return
+        #
+        #     # else download history
+        #
+        #     # ticker_symbol = get_ticker(self.name.replace('ETF', '')) # it does not like the word ETF
+        #     ticker_symbol = get_ticker(self.name, self.isin) # it does not like the word ETF
+        #     # data = yf.download(self.isin, START_PORTFOLIO, today, interval='1d')
+        #     data = yf.download(ticker_symbol, START_PORTFOLIO, today, interval='1d')
+        #     self.price_history = data[('Close', self.isin)].to_numpy()
+        #     self.time = data[('Close', self.isin)].index.to_numpy().astype('datetime64[D]')
+        #
+        #     self.time, self.price_history = correct_times_prices(self.time, self.price_history, START_PORTFOLIO, today)
+        #
+        #
+        #     time.sleep(1+random.random())
+        #     print('after history')
+        #
+        #     # ticker = yf.Ticker(self.isin)
+        #     ticker = yf.Ticker(ticker_symbol)
+        #     currency = ticker.info['currency']
+        #     # hist = ticker.history(start=START_PORTFOLIO, end=today)
+        #     # self.time = hist.index.date
+        #     time.sleep(1+random.random())
+        #     print('after currency')
+        #
+        #     if currency not in Currencies:
+        #         change = yf.Ticker('EUR{}=X'.format(currency))
+        #         eur_change = change.info['ask'] # bid/ask
+        #         Currencies[currency] = eur_change
+        #     print('after exchange')
+        #
+        #     self.price_history = self.price_history / Currencies[currency]
+        #     time.sleep(2*random.random()+2)
+        #
+        #     # save for caching
+        #     np.save(cache_file, [self.time, self.price_history])
+        #
+        # except Exception as e:
+        #     print('yfinance exception')
+        #     print(self.name, self.isin)
+        #     self.price_history = []
+        #     self.time = []
 
-            ticker = yf.Ticker(self.isin)
-            currency = ticker.info['currency']
-            # hist = ticker.history(start=START_PORTFOLIO, end=today)
-            # self.time = hist.index.date
-            time.sleep(1+random.random())
-            print('after currency')
 
-            if currency not in Currencies:
-                change = yf.Ticker('EUR{}=X'.format(currency))
-                eur_change = change.info['ask'] # bid/ask
-                Currencies[currency] = eur_change
-            print('after exchange')
 
-            self.price_history = self.price_history / Currencies[currency]
-            time.sleep(2*random.random()+2)
-
-            # save for caching
-            np.save(cache_file, [self.time, self.price_history])
-
-        except Exception as e:
-            print('yfinance exception')
-            print(self.name, self.isin)
-            self.price_history = []
 
 
     def add(self, date, value, nominal, price):
@@ -516,7 +629,8 @@ class Terminal():
             w.time_update()
             if len(w.time) == 0:
                 continue
-            plt.plot(w.time, w.Absolut, label=w.name+'('+str(i)+')')
+            Label = '{} {:0.2f}€ ({})'.format(w.name, w.Absolut[-1], i)
+            plt.plot(w.time, w.Absolut, label=Label)
         plt.legend()
         plt.grid()
         self.leg1 = InteractiveLegend()
@@ -526,11 +640,22 @@ class Terminal():
             w = self.Wertpapiere[i]
             if len(w.time) == 0:
                 continue
-            plt.plot(w.time, w.Relativ, label=w.name+'('+str(i)+')')
+            Label = '{} {:0.2f}€ ({})'.format(w.name, w.Relativ[-1], i)
+            plt.plot(w.time, w.Relativ, label=Label)
         plt.legend()
         plt.grid()
         self.leg2 = InteractiveLegend()
 
+        plt.figure()
+        for i in range(len(self.Wertpapiere)):
+            w = self.Wertpapiere[i]
+            if len(w.time) == 0:
+                continue
+            Label = '{} {:0.2f}€ ({})'.format(w.name, w.price_history[-1], i)
+            plt.plot(w.time, w.price_history, label=Label)
+        plt.legend()
+        plt.grid()
+        self.leg3 = InteractiveLegend()
 
     # single analysis of stocks and other stuff on demand
 
