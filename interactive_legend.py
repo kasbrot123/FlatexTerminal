@@ -11,6 +11,11 @@ class InteractiveLegend(object):
         self.lookup_artist, self.lookup_handle = self._build_lookups(legend)
         self._setup_connections()
         self.update()
+        
+        # help text
+        Help = 'Hide all: <Right-Click>, Show all: <Mouse-Wheel>'
+        self.title = plt.title(Help)
+
     def _setup_connections(self):
         # for artist in self.legend.texts + self.legend.legendHandles:
         for artist in self.legend.texts + self.legend.legend_handles:
