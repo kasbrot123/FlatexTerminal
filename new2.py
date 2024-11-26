@@ -170,7 +170,6 @@ def get_ticker(company_name, isin):
     for result in results:
         symbols.append(result['symbol'])
 
-    symbols.reverse() # last ones are better i guess ?
     return symbols
 
 
