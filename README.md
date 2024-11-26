@@ -13,3 +13,49 @@ The code structure is still not optimized and there are a lot of debugging featu
 
 *Update 2024-11-24*: Version 1.0 with Terminal class
 
+
+
+## To write
+
+- Terminal class (and functionalities)
+- Konto class (and functionalities)
+- Wertpapier class (and functionalities)
+- Only using `Depotumsätze.xlsx` and `Kontoumsätze.xlsx` (not `Orders-XXXXXXXX-XXXXXXXX.xlsx`)
+- Flatex does not export all data when using individual time frame (only with Kontoumsätze)
+- Explanation of different types of 'Konten'
+
+
+### Explanation of `Konten`
+
+
+
+
+
+Konten:
+
+    Tracking:
+        - Depot Zuflüsse (DepotIn)
+        - Depot Abflüsse (DepotOut)
+        - Konto Zuflüsse (KontoIn)
+        - Konto Abflüsse (KontoOut)
+        - Einzahlungen (CashIn)
+        - Auszahlungen (CashOut)
+        - Dividenden nach Steuer (Dividends)
+
+
+    Calculated:
+        KontoSaldo = 
+            KontoZuflüsse - KontoAbflüsse
+            (KontoSum)
+
+        DepotWert = 
+            Summe{ Wert aller Wertpapiere }
+            (DepotSum)
+
+        GebührSteuer = 
+            (KontoZuflüsse - KontoAbflüsse) - (DepotAbflüsse - DepotZuflüsse)
+            (FeesTaxes)
+
+        GesamtPortfolio = 
+            KontoSaldo + DepotWert
+            (Portfolio)
