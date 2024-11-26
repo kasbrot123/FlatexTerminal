@@ -2,44 +2,20 @@
 
 ToDo
 
-    Later:
-    - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
-    - zeros in plots maybe as nan values 
-    - wertpapiere time_update ändern
-    - Englisch/Deutsch -> einheitlich
-    - classes in different files, rename files
-    - constructor remove try catch
-    - faster solution when downloading all at once with 'Tickers' ?
+    High Priority:
+        - larger figure sizes
+        - classes in different files, rename files
+        - wertpapiere time_update ändern
+        - zeros in plots maybe as nan values 
+        - select stock based on name and show basic infos
+        - write Readme
 
+    Low Priority:
+        - delete/overrule cache function
+        - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
+        - Englisch/Deutsch -> einheitlich
+        - faster solution when downloading all at once with 'Tickers' ?
 
-Konten:
-
-    Tracking:
-        - Depot Zuflüsse (DepotIn)
-        - Depot Abflüsse (DepotOut)
-        - Konto Zuflüsse (KontoIn)
-        - Konto Abflüsse (KontoOut)
-        - Einzahlungen (CashIn)
-        - Auszahlungen (CashOut)
-        - Dividenden nach Steuer (Dividends)
-
-
-    Calculated:
-        KontoSaldo = 
-            KontoZuflüsse - KontoAbflüsse
-            (KontoSum)
-
-        DepotWert = 
-            Summe{ Wert aller Wertpapiere }
-            (DepotSum)
-
-        GebührSteuer = 
-            (KontoZuflüsse - KontoAbflüsse) - (DepotAbflüsse - DepotZuflüsse)
-            (FeesTaxes)
-
-        GesamtPortfolio = 
-            KontoSaldo + DepotWert
-            (Portfolio)
 
 
 """
@@ -51,20 +27,17 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import numpy as np
 import yfinance as yf
-import random
 import time
 import os
 import glob
 import datetime as dt
+import requests
+import logging
 
 
 # local modules
 from interactive_legend import InteractiveLegend
 
-import logging
-logger = logging.getLogger('yfinance')
-logger.disabled = True
-logger.propagate = False
 
 ####################################
 # Global Definitions 
@@ -72,6 +45,7 @@ logger.propagate = False
 
 START_PORTFOLIO = '2023-05-01'
 Currencies = {'EUR': 1}
+PATH = './Flatex_Export'
 
 
 ####################################
@@ -84,6 +58,9 @@ if not os.path.isdir('./.caching'):
 # if not os.path.isdir('./data'):
 #     os.mkdir('./data')
 
+logger = logging.getLogger('yfinance')
+logger.disabled = True
+logger.propagate = False
 
 ################################################################################
 # Functions 
@@ -133,26 +110,7 @@ def correct_times_prices(times, prices, start, end):
 
 
 
-import requests
 
-# def get_ticker(company_name, isin):
-#     url = "https://query2.finance.yahoo.com/v1/finance/search"
-#     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-#     params = {"q": company_name, "quotes_count": 1, "country": "United States"}
-#     # params = {"q": company_name, "quotes_count": 15, "country": "Austria"}
-#
-#     res = requests.get(url=url, params=params, headers={'User-Agent': user_agent})
-#     data = res.json()
-#
-#     # return data
-#     if len(data['quotes']) == 0:
-#         return isin
-#     company_code = data['quotes'][0]['symbol']
-#     return company_code
-#
-#
-# def get_data(isin, company_name):
-#     pass
 
 
 def get_ticker(company_name, isin):
@@ -337,64 +295,6 @@ class Wertpapier():
         np.save(cache_file, [self.time, self.price_history])
 
 
-        # try:
-        # # if True:
-        #     today = str(np.datetime64('today', 'D'))
-        #
-        #     cache_file = '.caching'+os.sep+isin+'.npy'
-        #     if os.path.isfile(cache_file):
-        #         data = np.load(cache_file, allow_pickle=True)
-        #         data_time = data[0].astype(np.datetime64)
-        #         if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
-        #             print('caching...')
-        #             self.time = data_time
-        #             self.price_history = data[1]
-        #             return
-        #
-        #     # else download history
-        #
-        #     # ticker_symbol = get_ticker(self.name.replace('ETF', '')) # it does not like the word ETF
-        #     ticker_symbol = get_ticker(self.name, self.isin) # it does not like the word ETF
-        #     # data = yf.download(self.isin, START_PORTFOLIO, today, interval='1d')
-        #     data = yf.download(ticker_symbol, START_PORTFOLIO, today, interval='1d')
-        #     self.price_history = data[('Close', self.isin)].to_numpy()
-        #     self.time = data[('Close', self.isin)].index.to_numpy().astype('datetime64[D]')
-        #
-        #     self.time, self.price_history = correct_times_prices(self.time, self.price_history, START_PORTFOLIO, today)
-        #
-        #
-        #     time.sleep(1+random.random())
-        #     print('after history')
-        #
-        #     # ticker = yf.Ticker(self.isin)
-        #     ticker = yf.Ticker(ticker_symbol)
-        #     currency = ticker.info['currency']
-        #     # hist = ticker.history(start=START_PORTFOLIO, end=today)
-        #     # self.time = hist.index.date
-        #     time.sleep(1+random.random())
-        #     print('after currency')
-        #
-        #     if currency not in Currencies:
-        #         change = yf.Ticker('EUR{}=X'.format(currency))
-        #         eur_change = change.info['ask'] # bid/ask
-        #         Currencies[currency] = eur_change
-        #     print('after exchange')
-        #
-        #     self.price_history = self.price_history / Currencies[currency]
-        #     time.sleep(2*random.random()+2)
-        #
-        #     # save for caching
-        #     np.save(cache_file, [self.time, self.price_history])
-        #
-        # except Exception as e:
-        #     print('yfinance exception')
-        #     print(self.name, self.isin)
-        #     self.price_history = []
-        #     self.time = []
-
-
-
-
 
     def add(self, date, value, nominal, price):
         self.dates.append(date)
@@ -453,12 +353,6 @@ class Terminal():
     def read_data(self, path='.', filetype='xlsx'):
         # read the data from the files and evaluate
 
-        # depot_path = './Depotumsätze_2023_2024.xlsx'
-        # konto_path = './Kontoumsätze_2023_2024.xlsx'
-
-        # self.depot = pd.read_excel(depot_path)
-        # self.konto = pd.read_excel(konto_path)
-
         if filetype not in ['csv', 'xlsx']:
             raise Exception("Only file types 'csv' and 'xlsx' supported.")
 
@@ -507,20 +401,20 @@ class Terminal():
 
         Order_keys = ['ORDER']
 
-        self.KontoIn = Konto('KontoIn')
-        self.KontoOut = Konto('KontoOut')
-        self.KontoSum = Konto('KontoSum')
+        self.KontoIn = Konto('Konto In')
+        self.KontoOut = Konto('Konto Out')
+        self.KontoSum = Konto('Konto Sum')
 
-        self.DepotIn = Konto('DepotIn')
-        self.DepotOut = Konto('DepotOut')
-        self.DepotSum = Konto('DepotSum')
+        self.DepotIn = Konto('Depot In')
+        self.DepotOut = Konto('Depot Out')
+        self.DepotSum = Konto('Depot Sum')
 
-        self.CashIn = Konto('CashIn')
-        self.CashOut = Konto('CashOut')
-        self.CashSum = Konto('CashSum')
+        self.CashIn = Konto('Cash In')
+        self.CashOut = Konto('Cash Out')
+        self.CashSum = Konto('Cash Sum')
 
-        self.OrderIn = Konto('OrderIn')
-        self.OrderOut = Konto('OrderOut')
+        self.OrderIn = Konto('Order In')
+        self.OrderOut = Konto('Order Out')
 
         self.Dividends = Konto('Dividends')
 
@@ -611,6 +505,7 @@ class Terminal():
         self.DepotSum.addWertpapiere(self.Wertpapiere)
         self.CashSum = self.CashOut + self.CashIn
         self.FeesTaxes = (self.OrderOut - self.OrderIn) - (self.DepotIn - self.DepotOut)
+        self.FeesTaxes.name = 'Fees and Taxes'
         self.Portfolio = self.KontoSum + self.DepotSum
         self.Portfolio.name = 'Portfolio'
 
@@ -641,7 +536,6 @@ class Terminal():
     def plot_stocks(self, relative=True):
         # plot all stock data abs/rel values with interative mode
 
-        Help = 'Delete all: <Right-Click>, Get all: <Mouse-Wheel>'
         plt.figure()
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
@@ -652,7 +546,6 @@ class Terminal():
             plt.plot(w.time, w.Absolut, label=Label)
         plt.legend()
         plt.grid()
-        plt.title(Help)
         self.leg1 = InteractiveLegend()
 
         plt.figure()
@@ -664,9 +557,10 @@ class Terminal():
             plt.plot(w.time, w.Relativ, label=Label)
         plt.legend()
         plt.grid()
-        plt.title(Help)
         self.leg2 = InteractiveLegend()
 
+
+    def plot_price_history(self):
         plt.figure()
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
@@ -676,8 +570,13 @@ class Terminal():
             plt.plot(w.time, w.price_history, label=Label)
         plt.legend()
         plt.grid()
-        plt.title(Help)
         self.leg3 = InteractiveLegend()
+
+    def select(self, name):
+        # select a stock based by name or isin (str or list)
+        # return info about buys/sells/number stocs
+        pass
+
 
     # single analysis of stocks and other stuff on demand
 
@@ -689,23 +588,11 @@ class Terminal():
 if __name__ == '__main__':
 
     terminal = Terminal()
-    terminal.read_data(path='./Flatex_Export')
+    terminal.read_data(path=PATH)
     terminal.plot_stocks()
+    terminal.plot_price_history()
     terminal.plot_konten()
 
     plt.show()
 
 
-
-
-
-###############################################################################
-# Other Stuff
-
-
-# from googlefinance import getQuotes
-# import json
-#
-# x = json.dumps(getQuotes('AAPL'), indent=2)
-#
-# y = json.dumps(getQuotes(['AAPL', 'VIE:BKS']), indent=2)
