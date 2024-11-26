@@ -1,17 +1,10 @@
 """
 
 ToDo
-    Now: 
-    - xlsx and csv support, path of files
-    - multiple input files
-    - ETFs funktionieren nicht
-    - uses real data from depot
 
     Later:
-    - Calls / Gold / Super Micro Computer lösen
     - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
     - zeros in plots maybe as nan values 
-    - Export Depotumsätze nicht vollständig (Konto schon -> Readme)
     - wertpapiere time_update ändern
     - Englisch/Deutsch -> einheitlich
     - classes in different files, rename files
@@ -61,6 +54,8 @@ import yfinance as yf
 import random
 import time
 import os
+import glob
+import datetime as dt
 
 
 # local modules
@@ -175,30 +170,29 @@ def get_ticker(company_name, isin):
     for result in results:
         symbols.append(result['symbol'])
 
+    symbols.reverse() # last ones are better i guess ?
     return symbols
 
 
 def get_data(company_name, isin):
     today = str(np.datetime64('today', 'D'))
-    waiting_time = 2
+    waiting_time = 2 # yahoo checks if you download much in short time
 
     company_name = company_name.replace('ETF', '')
     search = [isin, company_name] + get_ticker(company_name, isin)
     search = [isin] + get_ticker(company_name, isin)
     for i in range(len(search)):
-        if i > 0:
-            print('WARNING: ticker could be wrong')
-            print(company_name, search[i])
-            # return np.array([]), np.array([])
         s = search[i]
         time.sleep(waiting_time)
         data = yf.download(s, START_PORTFOLIO, today, interval='1d', progress=False)
         data = data.dropna(axis=1, how='all')
         s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
         if len(data) != 0:
-            print(company_name, s)
+            print(company_name+',', 'Ticker:', search[i])
+            if i > 0:
+                print('WARNING: ticker could be wrong')
             price_history = data[('Close', s_index)].to_numpy()
-            Time = data[('Close', s_index)].index.to_numpy().astype('datetime64[D]')
+            Time = data[('Close', s_index)].index.tz_convert(None).to_numpy().astype('datetime64[D]')
             Time, price_history = correct_times_prices(Time, price_history, START_PORTFOLIO, today)
 
             time.sleep(waiting_time)
@@ -457,14 +451,39 @@ class Terminal():
         pass
 
 
-    def read_data(self, path='.'):
+    def read_data(self, path='.', filetype='xlsx'):
         # read the data from the files and evaluate
 
-        depot_path = './Depotumsätze_2023_2024.xlsx'
-        konto_path = './Kontoumsätze_2023_2024.xlsx'
+        # depot_path = './Depotumsätze_2023_2024.xlsx'
+        # konto_path = './Kontoumsätze_2023_2024.xlsx'
 
-        self.depot = pd.read_excel(depot_path)
-        self.konto = pd.read_excel(konto_path)
+        # self.depot = pd.read_excel(depot_path)
+        # self.konto = pd.read_excel(konto_path)
+
+        if filetype not in ['csv', 'xlsx']:
+            raise Exception("Only file types 'csv' and 'xlsx' supported.")
+
+        # more flexibility
+        if not path[-1] == '/' and not path[-1] == '\\':
+            path += os.sep
+
+        files_depot = glob.glob(path + 'Depot*'+filetype)
+        files_konto = glob.glob(path + 'Konto*'+filetype)
+        df_depot = []
+        df_konto = []
+        for fd, fk in zip(files_depot, files_konto):
+            if filetype == 'csv':
+                # csv was such a pain in the ass, I gave up
+                raise Exception("File type 'csv' not implemented.")
+                dateparse = lambda dates: [dt.datetime.strptime(d, '%d.%m.%Y') for d in dates]
+                df_depot.append(pd.read_csv(fd, sep=';', header=0, encoding='ISO-8859-1', parse_dates=['Buchungstag', 'Valuta'], date_parser=dateparse))
+                df_konto.append(pd.read_csv(fk, sep=';', header=0, encoding='ISO-8859-1', parse_dates=['Buchungstag', 'Valuta'], date_parser=dateparse))
+            if filetype == 'xlsx':
+                df_depot.append(pd.read_excel(fd))
+                df_konto.append(pd.read_excel(fk))
+
+        self.depot = pd.concat(df_depot, ignore_index=True, sort=False)
+        self.konto = pd.concat(df_konto, ignore_index=True, sort=False)
 
         # make sure konto is sorted for date (Valuta or Buchungsdatum)
         konto_valuta = self.konto['Valuta'].to_numpy()
@@ -623,6 +642,7 @@ class Terminal():
     def plot_stocks(self, relative=True):
         # plot all stock data abs/rel values with interative mode
 
+        Help = 'Delete all: <Right-Click>, Get all: <Mouse-Wheel>'
         plt.figure()
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
@@ -633,6 +653,7 @@ class Terminal():
             plt.plot(w.time, w.Absolut, label=Label)
         plt.legend()
         plt.grid()
+        plt.title(Help)
         self.leg1 = InteractiveLegend()
 
         plt.figure()
@@ -644,6 +665,7 @@ class Terminal():
             plt.plot(w.time, w.Relativ, label=Label)
         plt.legend()
         plt.grid()
+        plt.title(Help)
         self.leg2 = InteractiveLegend()
 
         plt.figure()
@@ -655,6 +677,7 @@ class Terminal():
             plt.plot(w.time, w.price_history, label=Label)
         plt.legend()
         plt.grid()
+        plt.title(Help)
         self.leg3 = InteractiveLegend()
 
     # single analysis of stocks and other stuff on demand
@@ -667,7 +690,7 @@ class Terminal():
 if __name__ == '__main__':
 
     terminal = Terminal()
-    terminal.read_data()
+    terminal.read_data(path='./Flatex_Export')
     terminal.plot_stocks()
     terminal.plot_konten()
 
