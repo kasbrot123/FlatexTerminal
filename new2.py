@@ -3,23 +3,34 @@
 ToDo
 
     High Priority:
-        - larger figure sizes
         - classes in different files, rename files
+        - add example with example data
         - wertpapiere time_update ändern
-        - zeros in plots maybe as nan values 
-        - select stock based on name and show basic infos
         - write Readme
+        - only print warnings not all stocks
 
     Low Priority:
-        - delete/overrule cache function
         - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
+        - tickerlist reload module
         - Englisch/Deutsch -> einheitlich
         - faster solution when downloading all at once with 'Tickers' ?
+        - Interactive Legend not working when loading many stocks 
+        - exception in loop correct_times_prices
+
+
+Terminal.py
+Konto.py
+Wertpapier.py
+InteractiveLegend.py
+functions.py
+settings.py
+main.py / flatex_terminal.py
+
+
 
 
 
 """
-
 
 
 # global modules
@@ -33,6 +44,10 @@ import glob
 import datetime as dt
 import requests
 import logging
+import random
+from TickerList import TickerList # reload
+
+
 
 
 # local modules
@@ -46,13 +61,13 @@ from interactive_legend import InteractiveLegend
 START_PORTFOLIO = '2023-05-01'
 Currencies = {'EUR': 1}
 PATH = './Flatex_Export'
+FIGSIZE = (14, 7)
+
 
 
 ####################################
 # Paths and Folders
 
-if not os.path.isdir('./.caching'):
-    os.mkdir('.caching')
 
 # files with data
 # if not os.path.isdir('./data'):
@@ -120,50 +135,63 @@ def get_ticker(company_name, isin):
     params = {"q": company_name, "quotes_count": 1, "country": "United States"}
     # params = {"q": company_name, "quotes_count": 15, "country": "Austria"}
 
-    res = requests.get(url=url, params=params, headers={'User-Agent': user_agent})
-    data = res.json()
-    results = data['quotes']
+    try:
+        res = requests.get(url=url, params=params, headers={'User-Agent': user_agent})
+        data = res.json()
+        results = data['quotes']
 
-    symbols = []
-    for result in results:
-        symbols.append(result['symbol'])
+        symbols = []
+        for result in results:
+            symbols.append(result['symbol'])
+    except:
+        symbols = []
 
     return symbols
 
 
 def get_data(company_name, isin):
     today = str(np.datetime64('today', 'D'))
-    waiting_time = 2 # yahoo checks if you download much in short time
+    waiting_time = 1 + random.random() # yahoo checks if you download much in short time
 
     company_name = company_name.replace('ETF', '')
-    search = [isin, company_name] + get_ticker(company_name, isin)
-    search = [isin] + get_ticker(company_name, isin)
-    for i in range(len(search)):
-        s = search[i]
-        time.sleep(waiting_time)
-        data = yf.download(s, START_PORTFOLIO, today, interval='1d', progress=False)
-        data = data.dropna(axis=1, how='all')
-        s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
-        if len(data) != 0:
-            print(company_name+',', 'Ticker:', search[i])
-            if i > 0:
-                print('WARNING: ticker could be wrong')
-            price_history = data[('Close', s_index)].to_numpy()
-            Time = data[('Close', s_index)].index.tz_convert(None).to_numpy().astype('datetime64[D]')
-            Time, price_history = correct_times_prices(Time, price_history, START_PORTFOLIO, today)
-
+    if isin in TickerList:
+        search = [TickerList[isin], isin, company_name] + get_ticker(company_name, isin)
+    else:
+        search = [isin, company_name] + get_ticker(company_name, isin)
+    # search = [isin, company_name] + get_ticker(company_name, isin)
+    # search = [isin] + get_ticker(company_name, isin)
+    try:
+        for i in range(len(search)):
+            s = search[i]
             time.sleep(waiting_time)
-            ticker = yf.Ticker(s)
-            currency = ticker.info['currency']
+            data = yf.download(s, START_PORTFOLIO, today, interval='1d', progress=False)
+            data = data.dropna(axis=1, how='all')
+            s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
+            if len(data) != 0:
+                print(company_name, isin, search[i])
+                if i > 0:
+                    print('    -> WARNING: ticker could be wrong')
+                price_history = data[('Close', s_index)].to_numpy()
+                Time = data[('Close', s_index)].index.tz_convert(None).to_numpy().astype('datetime64[D]')
+                Time, price_history = correct_times_prices(Time, price_history, START_PORTFOLIO, today)
 
-            if currency not in Currencies:
                 time.sleep(waiting_time)
-                change = yf.Ticker('EUR{}=X'.format(currency))
-                eur_change = change.info['ask'] # bid/ask
-                Currencies[currency] = eur_change
-            price_history = price_history / Currencies[currency]
+                ticker = yf.Ticker(s)
+                if 'currency' not in ticker.info:
+                    print('Currency not found.')
+                    break # something is wrong
+                currency = ticker.info['currency']
 
-            return Time, price_history
+                if currency not in Currencies:
+                    time.sleep(waiting_time)
+                    change = yf.Ticker('EUR{}=X'.format(currency))
+                    eur_change = change.info['ask'] # bid/ask
+                    Currencies[currency] = eur_change
+                price_history = price_history / Currencies[currency]
+
+                return Time, price_history
+    except:
+        print('error with', company_name, isin)
 
     return np.array([]), np.array([])
 
@@ -278,14 +306,14 @@ class Wertpapier():
         self.Absolut = 0
         self.Relativ = 1
 
-        print(self.name)
+        # print(self.name)
 
         cache_file = '.caching'+os.sep+isin+'.npy'
         if os.path.isfile(cache_file):
             data = np.load(cache_file, allow_pickle=True)
             data_time = data[0].astype(np.datetime64)
             if len(data_time) > 0 and data_time[-1] >= np.datetime64('today', 'D'):
-                print('caching...')
+                print(name, isin, 'caching...')
                 self.time = data_time
                 self.price_history = data[1]
                 return
@@ -359,6 +387,9 @@ class Terminal():
         # more flexibility
         if not path[-1] == '/' and not path[-1] == '\\':
             path += os.sep
+
+        if not os.path.isdir('./.caching'):
+            os.mkdir('.caching')
 
         files_depot = glob.glob(path + 'Depot*'+filetype)
         files_konto = glob.glob(path + 'Konto*'+filetype)
@@ -513,7 +544,7 @@ class Terminal():
     def plot_konten(self):
         # plot all 'Konten' with interactive mode
 
-        plt.figure()
+        plt.figure(figsize=FIGSIZE)
         self.KontoIn.plot(True)
         self.KontoOut.plot(True)
         self.KontoSum.plot(True)
@@ -531,12 +562,13 @@ class Terminal():
         plt.legend()
         plt.grid()
         self.leg = InteractiveLegend()
+        plt.tight_layout()
 
 
     def plot_stocks(self, relative=True):
         # plot all stock data abs/rel values with interative mode
 
-        plt.figure()
+        plt.figure(figsize=FIGSIZE)
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
             w.time_update()
@@ -547,8 +579,9 @@ class Terminal():
         plt.legend()
         plt.grid()
         self.leg1 = InteractiveLegend()
+        plt.tight_layout()
 
-        plt.figure()
+        plt.figure(figsize=FIGSIZE)
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
             if len(w.time) == 0:
@@ -558,10 +591,11 @@ class Terminal():
         plt.legend()
         plt.grid()
         self.leg2 = InteractiveLegend()
+        plt.tight_layout()
 
 
     def plot_price_history(self):
-        plt.figure()
+        plt.figure(figsize=FIGSIZE)
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
             if len(w.time) == 0:
@@ -571,11 +605,25 @@ class Terminal():
         plt.legend()
         plt.grid()
         self.leg3 = InteractiveLegend()
+        plt.tight_layout()
 
     def select(self, name):
         # select a stock based by name or isin (str or list)
-        # return info about buys/sells/number stocs
+        # return info about buys/sells/number stocks
         pass
+
+
+    # just for completeness
+    def delete_cache(self):
+        if os.path.isdir('./.caching'):
+            os.remove('./caching')
+
+    # just for completeness
+    def reload(self):
+        self.delete_cache()
+        self.read_data(path=PATH)
+
+
 
 
     # single analysis of stocks and other stuff on demand
