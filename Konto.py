@@ -1,20 +1,18 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-# local modules
-from InteractiveLegend import InteractiveLegend
-from settings import START_PORTFOLIO
 
 
 
 class Konto():
-    def __init__(self, name):
+    def __init__(self, name, start_date):
         self.name = name
         self.dates = []
         self.values = []
         self.value = 0
+        self.start_date = start_date
 
-        start = np.datetime64(START_PORTFOLIO, 'D')
+        start = np.datetime64(self.start_date, 'D')
         end = np.datetime64('today', 'D') + np.timedelta64(1, 'D') # because arange
 
         self.time = np.arange(start, end, np.timedelta64(1, 'D'))
@@ -58,7 +56,7 @@ class Konto():
         if not isinstance(Add, Konto):
             raise Exception('Addition only possible between Konto classes')
 
-        NewObject = Konto('('+self.name + ' + ' +Add.name+')')
+        NewObject = Konto('('+self.name + ' + ' +Add.name+')', self.start_date)
         # NewObject.t_values = self.t_values + Add.t_values
         # NewObject.tsum_values = np.cumsum(NewObject.t_values)
         NewObject.tsum_values = self.tsum_values + Add.tsum_values
@@ -79,7 +77,7 @@ class Konto():
         if not isinstance(Sub, Konto):
             raise Exception('Subtraction only possible between Konto classes')
 
-        NewObject = Konto('('+self.name + ' - ' +Sub.name+')')
+        NewObject = Konto('('+self.name + ' - ' +Sub.name+')', self.start_date)
         # NewObject.t_values = self.t_values - Sub.t_values
         # NewObject.tsum_values = np.cumsum(NewObject.t_values)
         NewObject.tsum_values = self.tsum_values - Sub.tsum_values

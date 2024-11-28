@@ -3,9 +3,13 @@ import requests
 import random
 import time
 import yfinance as yf
+import logging
 
+logger = logging.getLogger('yfinance')
+logger.disabled = True
+logger.propagate = False
 
-from settings import START_PORTFOLIO, TickerList
+from settings import TickerList
 
 Currencies = {'EUR': 1}
 
@@ -57,9 +61,6 @@ def correct_times_prices(times, prices, start, end):
 
 
 
-
-
-
 def get_ticker(company_name, isin):
     url = "https://query2.finance.yahoo.com/v1/finance/search"
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -81,7 +82,7 @@ def get_ticker(company_name, isin):
     return symbols
 
 
-def get_data(company_name, isin):
+def get_data(start_date, company_name, isin):
     today = str(np.datetime64('today', 'D'))
     waiting_time = 1 + random.random() # yahoo checks if you download much in short time
 
@@ -96,16 +97,16 @@ def get_data(company_name, isin):
         for i in range(len(search)):
             s = search[i]
             time.sleep(waiting_time)
-            data = yf.download(s, START_PORTFOLIO, today, interval='1d', progress=False)
+            data = yf.download(s, start_date, today, interval='1d', progress=False)
             data = data.dropna(axis=1, how='all')
             s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
             if len(data) != 0:
-                print(company_name, isin, search[i])
                 if i > 0:
-                    print('    -> WARNING: ticker could be wrong')
+                    print('WARNING: ticker could be wrong')
+                    print('{}, {}, {}'.format(company_name, isin, search[i]))
                 price_history = data[('Close', s_index)].to_numpy()
                 Time = data[('Close', s_index)].index.tz_convert(None).to_numpy().astype('datetime64[D]')
-                Time, price_history = correct_times_prices(Time, price_history, START_PORTFOLIO, today)
+                Time, price_history = correct_times_prices(Time, price_history, start_date, today)
 
                 time.sleep(waiting_time)
                 ticker = yf.Ticker(s)

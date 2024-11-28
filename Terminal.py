@@ -8,14 +8,37 @@ import pandas as pd
 from InteractiveLegend import InteractiveLegend
 from Konto import Konto
 from Wertpapier import Wertpapier
-from settings import FIGSIZE, PATH
 
+
+FIGSIZE = (14, 7)
 
 class Terminal():
 
-    def __init__(self):
+    def __init__(self, start_date):
         ## init parameters and 'Konten'
-        pass
+        self.start_date = start_date
+
+        self.Eigenkapital_keys = [
+            'Einlage',
+            'Investment',
+            'Investment Sparplan'
+            ]
+        self.Order_keys = ['ORDER']
+
+        self.KontoIn = Konto('Konto In', self.start_date)
+        self.KontoOut = Konto('Konto Out', self.start_date)
+        self.KontoSum = Konto('Konto Sum', self.start_date)
+        self.DepotIn = Konto('Depot In', self.start_date)
+        self.DepotOut = Konto('Depot Out', self.start_date)
+        self.DepotSum = Konto('Depot Sum', self.start_date)
+        self.CashIn = Konto('Cash In', self.start_date)
+        self.CashOut = Konto('Cash Out', self.start_date)
+        self.CashSum = Konto('Cash Sum', self.start_date)
+        self.OrderIn = Konto('Order In', self.start_date)
+        self.OrderOut = Konto('Order Out', self.start_date)
+        self.Dividends = Konto('Dividends', self.start_date)
+
+        self.Wertpapiere = []
 
 
     def read_data(self, path='.', filetype='xlsx'):
@@ -64,33 +87,6 @@ class Terminal():
         depot_kurs = self.depot['Kurs'].to_numpy()
         depot_info = self.depot['Buchungsinformation'].to_numpy()
 
-        Eigenkapital_keys = [
-            'Einlage',
-            'Investment',
-            'Investment Sparplan'
-            ]
-
-        Order_keys = ['ORDER']
-
-        self.KontoIn = Konto('Konto In')
-        self.KontoOut = Konto('Konto Out')
-        self.KontoSum = Konto('Konto Sum')
-
-        self.DepotIn = Konto('Depot In')
-        self.DepotOut = Konto('Depot Out')
-        self.DepotSum = Konto('Depot Sum')
-
-        self.CashIn = Konto('Cash In')
-        self.CashOut = Konto('Cash Out')
-        self.CashSum = Konto('Cash Sum')
-
-        self.OrderIn = Konto('Order In')
-        self.OrderOut = Konto('Order Out')
-
-        self.Dividends = Konto('Dividends')
-
-        self.Wertpapiere = []
-
 
         # iteration for depot
         for i in range(len(self.depot)):
@@ -116,7 +112,7 @@ class Terminal():
                         not_in_Wertpapiere = False
                         w.add(date, value_netto, nominal, price)
                 if not_in_Wertpapiere:
-                    w = Wertpapier(ISIN, name)
+                    w = Wertpapier(self.start_date, ISIN, name)
                     w.add(date, value_netto, nominal, price)
                     self.Wertpapiere.append(w)
 
@@ -139,7 +135,6 @@ class Terminal():
                 pass # no action
 
 
-
         # iteration for konto
         for i in range(len(konto_valuta)):
             # fields from table
@@ -155,13 +150,13 @@ class Terminal():
                 self.KontoOut.add(date, value_konto)
 
             # Cash In and Out
-            if any(key in buchungsinfo for key in Eigenkapital_keys):
+            if any(key in buchungsinfo for key in self.Eigenkapital_keys):
                 self.CashIn.add(date, value_konto)
             if 'Flatex Auszahlung' in buchungsinfo:
                 self.CashOut.add(date, value_konto)
 
             # Order Fees and Taxes
-            if any(key in buchungsinfo for key in Order_keys):
+            if any(key in buchungsinfo for key in self.Order_keys):
                 if 'Kauf' in buchungsinfo: # or value_konto < 0
                     self.OrderIn.add(date, value_konto)
                 if 'Verkauf' in buchungsinfo: # or value_konto > 0
@@ -253,17 +248,5 @@ class Terminal():
         pass
 
 
-    # just for completeness
-    def delete_cache(self):
-        if os.path.isdir('./.caching'):
-            os.remove('./caching')
-
-    # just for completeness
-    def reload(self):
-        self.delete_cache()
-        self.read_data(path=PATH)
-
-
-
-
     # single analysis of stocks and other stuff on demand
+

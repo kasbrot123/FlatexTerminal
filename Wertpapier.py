@@ -6,7 +6,7 @@ from functions import get_data
 
 class Wertpapier():
 
-    def __init__(self, isin, name):
+    def __init__(self, isin, name, start_date):
 
         self.isin = isin
         self.name = name
@@ -34,7 +34,7 @@ class Wertpapier():
                 return
 
         # today = str(np.datetime64('today', 'D'))
-        self.time, self.price_history = get_data(self.name, self.isin)
+        self.time, self.price_history = get_data(start_date, self.name, self.isin)
         np.save(cache_file, [self.time, self.price_history])
 
 

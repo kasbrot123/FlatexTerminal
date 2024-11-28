@@ -1,5 +1,4 @@
 """
-
 ToDo
 
     High Priority:
@@ -17,57 +16,28 @@ ToDo
         - exception in loop correct_times_prices
 
 
-Terminal.py
-Konto.py
-Wertpapier.py
-InteractiveLegend.py
-functions.py
-settings.py
-main.py / flatex_terminal.py
-
-
-
-
-
 """
 
-
-# global modules
-# import pandas as pd
-# import numpy as np
-# import yfinance as yf
-# import time
-# import os
-# import glob
-# import datetime as dt
-# import requests
-# import random
-# from TickerList import TickerList # reload
-
-import logging
 from matplotlib import pyplot as plt
-
-
 from Terminal import Terminal
-from settings import PATH
+
 
 
 ####################################
 # Global Definitions 
 
+PATH = './Flatex_Export'
 
-logger = logging.getLogger('yfinance')
-logger.disabled = True
-logger.propagate = False
+START_PORTFOLIO = '2023-05-01'
+TODAY = '2024-11-28'
+
 
 
 ################################################################################
 
-
-
 if __name__ == '__main__':
 
-    terminal = Terminal()
+    terminal = Terminal(START_PORTFOLIO)
     terminal.read_data(path=PATH)
     terminal.plot_stocks()
     terminal.plot_price_history()
