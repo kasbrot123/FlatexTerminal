@@ -3,7 +3,6 @@
 ToDo
 
     High Priority:
-        - classes in different files, rename files
         - add example with example data
         - wertpapiere time_update ändern
         - write Readme
