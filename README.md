@@ -71,30 +71,47 @@ quantity.
 These are the predefined objects of the class `Konto`:
 
     Tracking:
+        - KontoSaldo (KontoSum)
+            -> every entry in 'Kontoumsätze'
         - Depot Incoming (DepotIn)
+            -> 'Kauf' in info line from 'Depotumsätze'
         - Depot Outgoing (DepotOut)
+            -> 'Verkauf' in info line from 'Depotumsätze'
         - Konto Incoming (KontoIn)
+            -> 'value' is positive
         - Konto Outgoing (KontoOut)
+            -> 'value' is negative
         - Cash Incoming (CashIn)
+            -> 'info' matches with Dict:Eigenkapital_keys
         - Cash Outgoing (CashOut)
+            -> 'Flatex Auszahlung' in info line from 'Kontoumsätze'
         - Dividends after tax (Dividends)
+            -> 'info' containing 'Dividenden'
+        - Order Incoming
+            -> 'Kauf' in info line from 'Kontoumsätze'
+        - Order Outgoing
+            -> 'Verkauf' in info line from 'Kontoumsätze'
+
 
     Calculated:
-        KontoSaldo = 
-            Konto Incoming - Konto Outgoing
-            (KontoSum)
+
+        Cash Value = 
+            (Cash Incoming - Cash Outgoing)
+            (CashSum)
 
         Depot Value = 
             Summe{ Value of all assets/stocks }
             (DepotSum)
 
         Fees and Taxes = 
-            (Konto Incoming - Konto Outgoing) - (Depot Outgoing - Depot Incoming)
+            (Order Outgoing - Order Incoming) - (Depot Incoming - Depot Outgoing)
             (FeesTaxes)
 
         Portfolio in Total = 
             KontoSaldo + Depot Value
             (Portfolio)
+
+
 
 ### `Wertpapiere.py`
 
