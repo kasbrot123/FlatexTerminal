@@ -2,7 +2,7 @@
 
 Python code for visualizing the assets of your flatex depot.
 
-**Latest Version:** `new2.py`
+**Latest Version:** `main.py`
 
 
 ## Current Status
@@ -11,6 +11,7 @@ Python code for visualizing the assets of your flatex depot.
 
 The code structure is still not optimized and there are a lot of debugging features in the code. A clean up is done afterwards when the main features are implemented. 
 
+*Update 2024-11-28*: Restructured files and put classes and functions in own files
 
 *Update 2024-11-26*: Stable Version with multiple file support and ETFs history
 
