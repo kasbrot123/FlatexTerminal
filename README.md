@@ -71,6 +71,7 @@ quantity.
 These are the predefined objects of the class `Konto`:
 
     Tracking:
+
         - KontoSaldo (KontoSum)
             -> every entry in 'Kontoumsätze'
         - Depot Incoming (DepotIn)
