@@ -49,9 +49,9 @@ def get_data(company_name, isin):
     # search = [isin, company_name] + get_ticker(company_name, isin)
     search = [isin] + get_ticker(company_name, isin)
     for i in range(len(search)):
+        print(company_name, search[i])
         if i > 0:
             print('WARNING: ticker could be wrong')
-            print(company_name, search[i])
             # return np.array([]), np.array([])
         s = search[i]
         time.sleep(waiting_time)

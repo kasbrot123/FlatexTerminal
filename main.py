@@ -2,17 +2,13 @@
 ToDo
 
     High Priority:
-        - add example with example data
-        - wertpapiere time_update ändern
         - write Readme
-        - only print warnings not all stocks
+        - Interactive Legend not working when loading many stocks 
 
     Low Priority:
         - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
-        - tickerlist reload module
         - Englisch/Deutsch -> einheitlich
         - faster solution when downloading all at once with 'Tickers' ?
-        - Interactive Legend not working when loading many stocks 
         - exception in loop correct_times_prices
 
 

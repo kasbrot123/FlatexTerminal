@@ -4,12 +4,15 @@ import random
 import time
 import yfinance as yf
 import logging
+from importlib import reload
 
 logger = logging.getLogger('yfinance')
 logger.disabled = True
 logger.propagate = False
 
-from settings import TickerList
+import TickerList as tl
+reload(tl)
+
 
 Currencies = {'EUR': 1}
 
@@ -87,8 +90,8 @@ def get_data(start_date, company_name, isin):
     waiting_time = 1 + random.random() # yahoo checks if you download much in short time
 
     company_name = company_name.replace('ETF', '')
-    if isin in TickerList:
-        search = [TickerList[isin], isin, company_name] + get_ticker(company_name, isin)
+    if isin in tl.TickerList:
+        search = [tl.TickerList[isin], isin, company_name] + get_ticker(company_name, isin)
     else:
         search = [isin, company_name] + get_ticker(company_name, isin)
     # search = [isin, company_name] + get_ticker(company_name, isin)
@@ -102,8 +105,8 @@ def get_data(start_date, company_name, isin):
             s_index = s.split(' ')[0] # spaces and index names are weired in pandas, pandas splits with spaces
             if len(data) != 0:
                 if i > 0:
-                    print('WARNING: ticker could be wrong')
-                    print('{}, {}, {}'.format(company_name, isin, search[i]))
+                    print('    -> WARNING: ticker could be wrong')
+                    print('    {}, {}, {}'.format(company_name, isin, search[i]))
                 price_history = data[('Close', s_index)].to_numpy()
                 Time = data[('Close', s_index)].index.tz_convert(None).to_numpy().astype('datetime64[D]')
                 Time, price_history = correct_times_prices(Time, price_history, start_date, today)

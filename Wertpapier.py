@@ -21,7 +21,7 @@ class Wertpapier():
         self.Absolut = 0
         self.Relativ = 1
 
-        # print(self.name)
+        print(self.name)
 
         cache_file = '.caching'+os.sep+isin+'.npy'
         if os.path.isfile(cache_file):
@@ -59,11 +59,6 @@ class Wertpapier():
             plt.plot(self.dates, values_cumsum, 'o--', label='{} ({:0.2f} €)'.format(self.name, values_cumsum[-1]))
 
 
-    def Value(self):
-        # self.stock_value = sum(self.nominals) * self.price_current
-        self.stock_value = sum([p*n for p, n in zip(self.prices, self.nominals)])
-        return self.stock_value
-
     def time_update(self):
         self.t_nominals = np.zeros(len(self.time))
         self.t_prices = np.zeros(len(self.time))
@@ -84,3 +79,5 @@ class Wertpapier():
         self.Absolut[self.Absolut == 0] = 0
         L_nominal = self.tsum_nominals > 0
         self.Relativ = self.price_history / effective_price * L_nominal
+
+

@@ -112,7 +112,7 @@ class Terminal():
                         not_in_Wertpapiere = False
                         w.add(date, value_netto, nominal, price)
                 if not_in_Wertpapiere:
-                    w = Wertpapier(self.start_date, ISIN, name)
+                    w = Wertpapier(ISIN, name, self.start_date)
                     w.add(date, value_netto, nominal, price)
                     self.Wertpapiere.append(w)
 
@@ -206,7 +206,7 @@ class Terminal():
         plt.figure(figsize=FIGSIZE)
         for i in range(len(self.Wertpapiere)):
             w = self.Wertpapiere[i]
-            w.time_update()
+            # w.time_update()
             if len(w.time) == 0:
                 continue
             Label = '{} {:0.2f}€ ({})'.format(w.name, w.Absolut[-1], i)
