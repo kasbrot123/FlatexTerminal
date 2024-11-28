@@ -6,11 +6,10 @@ ToDo
         - Interactive Legend not working when loading many stocks 
 
     Low Priority:
+        - START_PORTFOLIO is given by files (but you could choose a earlier date)
         - Vielleicht die Aktien bei komplettem Verkauf trennen sodass neuer eff. Preis entsteht
         - Englisch/Deutsch -> einheitlich
         - faster solution when downloading all at once with 'Tickers' ?
-        - exception in loop correct_times_prices
-
 
 """
 
@@ -23,9 +22,7 @@ from Terminal import Terminal
 # Global Definitions 
 
 PATH = './Flatex_Export'
-
 START_PORTFOLIO = '2023-05-01'
-TODAY = '2024-11-28'
 
 
 
