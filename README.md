@@ -35,7 +35,7 @@ START_PORTFOLIO = '2023-05-01'
 
 When running the script for the first time it will download all the stock data
 using the package `yfinance`. This can take a while since the download includes
-`sleep()` calls to prevent and IP block. The data is saved in `.cache` and used
+`sleep()` calls to prevent and IP block. The data is saved in `.caching` and used
 then instead of downloading again.
 
 
