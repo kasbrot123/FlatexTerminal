@@ -54,8 +54,8 @@ Hell- und Dunkelmodus, Farben der Wertpapierklassen wählbar, Beträge immer in 
 Voraussetzung: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```powershell
-git clone <repo-url> flatex-terminal
-cd flatex-terminal
+git clone https://github.com/kasbrot123/FlatexTerminal.git
+cd FlatexTerminal
 docker compose up -d --build
 ```
 
@@ -79,8 +79,8 @@ Voraussetzungen: **Python 3.12+** und **Node.js 20+** (für das Frontend). Beisp
 PowerShell.
 
 ```powershell
-git clone <repo-url> flatex-terminal
-cd flatex-terminal
+git clone https://github.com/kasbrot123/FlatexTerminal.git
+cd FlatexTerminal
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[web,dev]"
 .\.venv\Scripts\python.exe -m flatex setup     # lädt den PDF-Leser (mit Prüfsumme), legt die Datenbank an

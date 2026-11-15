@@ -1,0 +1,6 @@
+# Einheitliche Zeilenenden (LF) im Repository – wichtig für Docker/Linux
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.pdf binary
+*.png binary
+*.xlsx binary
