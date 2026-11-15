@@ -1,0 +1,35 @@
+# Vorlage – kopieren nach config.toml und anpassen (im Container: per Volume einbinden
+# oder FLATEX_DEPOT_START setzen).
+
+[portal]
+domain = "flatex.at"
+# Erstes Datum, ab dem Umsätze/Dokumente gesucht werden (Depoteröffnung).
+# Ermitteln: python -m flatex startdatum --von 2015-01-01 --bis <Datum kurz nach Eröffnung>
+depot_start = "2020-01-01"
+
+[auswertung]
+# Standard-Zeitraum im Dashboard (im Dashboard änderbar). Leer = alles bis heute.
+von = ""
+bis = ""
+
+[pacing]
+# Tempo wie ein zügiger Mensch – siehe README "Umgang mit flatex".
+request_delay = [0.6, 1.4]
+action_pause = [1.5, 3.0]
+burst_every = 60
+burst_pause = [15.0, 30.0]
+max_actions_per_run = 500
+
+[sync]
+closed_after_days = 10
+suspect_min_rows = 20
+edge_gap_days = 3
+postfach_window_months = 3
+postfach_overlap_days = 14
+block_monate = 12
+# Postfach-PDFs enthalten persönliche Dokumente – nur auf ausdrücklichen Wunsch laden.
+postfach_automatisch = false
+
+[paths]
+data = "data"
+pdf_cli = "tools/flatex-pdf-cli.exe"

@@ -1,0 +1,11 @@
+# Manuelle Ticker-Zuordnung für Yahoo Finance (hat Vorrang vor der automatischen Suche).
+# Nur nötig, wenn `python -m flatex kurse` eine Abweichung meldet oder kein Kurs gefunden wird.
+#
+# ["ISIN"]
+# ticker = "SYMBOL.BÖRSE"     z. B. "IUSQ.DE" (Xetra), "VOE.VI" (Wien), "AAPL" (Nasdaq, USD)
+# ticker = ""                 erzwingt den Ersatzkurs aus den flatex-Handelskursen
+# typ = "ETF"                 Klasse für die Aufteilung: "Aktie" | "ETF" | "Derivat" | "Sonstige"
+#
+# Beispiel:
+# ["IE00B4L5Y983"]
+# ticker = "EUNL.DE"

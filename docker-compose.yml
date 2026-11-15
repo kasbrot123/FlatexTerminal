@@ -1,0 +1,39 @@
+# Start:   docker compose up -d --build      ->  http://localhost:8600
+# Stopp:   docker compose down               (Daten bleiben im Volume "flatex-data")
+services:
+  flatex:
+    build: .
+    image: flatex-terminal:latest
+    container_name: flatex-terminal
+    # nur auf diesem Rechner erreichbar – nicht im Netzwerk
+    ports:
+      - "127.0.0.1:8600:8600"
+    volumes:
+      - flatex-data:/data
+      # Eigene Einstellungen (optional, schreibgeschützt):
+      # - ./config.toml:/app/config.toml:ro
+      # - ./securities.toml:/app/securities.toml:ro
+    environment:
+      # Vorgaben – einfacher in der Web-App unter „Einstellungen“ (Zahnrad) zu setzen:
+      FLATEX_DEPOT_START: ${FLATEX_DEPOT_START:-}
+      FLATEX_EIGENE_NAMEN: ${FLATEX_EIGENE_NAMEN:-}
+    # Zugangsdaten: am einfachsten in der Web-App eingeben (bleiben nur im Arbeitsspeicher).
+    # Alternativ dauerhaft als Docker-Secret (Dateien liegen nur bei dir, nicht im Image):
+    # secrets: [flatex_user, flatex_password]
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/flatex
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+
+volumes:
+  flatex-data:
+
+# secrets:
+#   flatex_user:
+#     file: ./secrets/flatex_user.txt
+#   flatex_password:
+#     file: ./secrets/flatex_password.txt

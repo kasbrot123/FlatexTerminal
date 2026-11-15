@@ -1,0 +1,32 @@
+# --- Persönliche Daten – niemals committen ---------------------------------------
+# Datenbank, Rohdaten (CSV/PDF), Debug-Aufzeichnungen
+data/
+data-docker/
+*.db
+*.db-wal
+*.db-shm
+*.har
+# eigene Einstellungen (Vorlagen: config.example.toml, securities.example.toml)
+config.toml
+securities.toml
+# Zugangsdaten
+.env
+.env.*
+secrets/
+
+# --- Werkzeuge und Build-Ergebnisse ----------------------------------------------
+tools/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+web/node_modules/
+web/dist/
+
+# --- Editor und Betriebssystem ---------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

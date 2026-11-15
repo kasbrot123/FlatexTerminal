@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Farb-Tokens (RGB-Tripel für Tailwind-Alpha). Datenfarben = validierte Palette, hell/dunkel getrennt gestuft. */
+:root {
+  color-scheme: light;
+  --page: 249 249 247;      /* #f9f9f7 */
+  --surface: 252 252 251;   /* #fcfcfb Diagrammfläche/Karten */
+  --raised: 255 255 255;
+  --ink: 11 11 11;
+  --ink2: 82 81 78;
+  --muted: 137 135 129;
+  --line: 225 224 217;      /* Gitter/Hairline */
+  --axis: 195 194 183;
+  --s1: 42 120 214;         /* #2a78d6 blau */
+  --s2: 235 104 52;         /* #eb6834 orange */
+  --s3: 27 175 122;         /* #1baf7a aqua */
+  --s4: 237 161 0;          /* #eda100 gelb */
+  --s5: 232 123 164;        /* #e87ba4 magenta */
+  --s6: 0 131 0;            /* #008300 grün */
+  --s7: 98 80 214;          /* #6250d6 violett */
+  --s8: 227 73 72;          /* #e34948 rot */
+  --good: 0 99 0;           /* #006300 Erfolgstext */
+  --bad: 208 59 59;         /* #d03b3b kritisch */
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: 13 13 13; --surface: 26 26 25; --raised: 33 33 31; --ink: 240 239 236; --ink2: 195 194 183;
+    --muted: 137 135 129; --line: 44 44 42; --axis: 56 56 53;
+    --s1: 57 135 229; --s2: 217 89 38; --s3: 25 158 112; --s4: 201 133 0; --s5: 213 81 129; --s6: 0 131 0; --s7: 144 133 233; --s8: 230 103 103; --good: 12 163 12; --bad: 230 103 103;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: 13 13 13; --surface: 26 26 25; --raised: 33 33 31; --ink: 240 239 236; --ink2: 195 194 183;
+  --muted: 137 135 129; --line: 44 44 42; --axis: 56 56 53;
+  --s1: 57 135 229; --s2: 217 89 38; --s3: 25 158 112; --s4: 201 133 0; --s5: 213 81 129; --s6: 0 131 0; --s7: 144 133 233; --s8: 230 103 103; --good: 12 163 12; --bad: 230 103 103;
+}
+
+html, body { background: rgb(var(--page)); color: rgb(var(--ink)); }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* weicher Farbwechsel beim Umschalten Hell/Dunkel */
+body, .theme-fade { transition: background-color .35s ease, color .35s ease, border-color .35s ease; }
+
+/* dezenter Hintergrundschein */
+.glow::before {
+  content: ""; position: fixed; inset: -20% -10% auto -10%; height: 60vh; z-index: -1; pointer-events: none;
+  background: radial-gradient(60% 60% at 30% 20%, rgb(var(--s1) / .10), transparent 70%),
+              radial-gradient(40% 50% at 80% 10%, rgb(var(--s3) / .08), transparent 70%);
+}
+
+/* Recharts: Fokusrahmen entfernen, Achsen ruhig */
+.recharts-wrapper *:focus { outline: none; }
+.recharts-cartesian-axis-tick-value { fill: rgb(var(--muted)); font-size: 12px; }
+
+::selection { background: rgb(var(--s1) / .25); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
